@@ -123,14 +123,11 @@ fun AndroidTVApp(
                     LoadingBox()
                     return@AppWrap
                 }
-                val selected = channelState.selectedChannel ?: return@AppWrap
                 ChannelsScreen(
                     activeCat = channelState.activeCategory,
-                    selected = selected,
                     favorites = channelState.favorites,
                     filtered = channelState.filteredChannels,
                     onActiveCatChange = channelViewModel::setCategory,
-                    onSelectedChange = channelViewModel::selectChannel,
                     onNavigate = navViewModel::navigate,
                     onOpenPlayer = navViewModel::openPlayer,
                     onToggleFav = channelViewModel::toggleFavorite,
