@@ -1,7 +1,12 @@
 package com.sihiver.mqltv.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,10 +25,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +66,8 @@ import com.sihiver.mqltv.ui.theme.SidebarBg
 import com.sihiver.mqltv.ui.theme.TextDim
 import com.sihiver.mqltv.ui.theme.TextMuted
 
+private const val FULLSCREEN_OVERLAY_HIDE_MS = 5_000L
+
 @Composable
 fun PlayerScreen(
     playing: Channel,
@@ -75,6 +92,8 @@ fun PlayerScreen(
 ) {
     val clock = useClock()
     val isFavorite = favorites.contains(playing.id)
+    val overlayControlsFocus = remember { FocusRequester() }
+    val channelListFocus = remember { FocusRequester() }
 
     val videoArea: @Composable (Modifier) -> Unit = { modifier ->
         VideoArea(
@@ -89,6 +108,8 @@ fun PlayerScreen(
             streamDrmType = streamDrmType,
             streamDrmKey = streamDrmKey,
             isFavorite = isFavorite,
+            overlayControlsFocus = overlayControlsFocus,
+            channelListFocus = channelListFocus,
             onBack = {
                 if (isFullscreen) onFullscreenChange(false)
                 else onNavigate(AppScreen.HOME)
@@ -123,6 +144,8 @@ fun PlayerScreen(
             ChannelListPanel(
                 channels = channels,
                 playing = playing,
+                overlayControlsFocus = overlayControlsFocus,
+                channelListFocus = channelListFocus,
                 onChannelSelect = { channel ->
                     onPlayingChange(channel)
                     onIsPlayingChange(true)
@@ -145,6 +168,8 @@ private fun VideoArea(
     streamDrmType: String? = null,
     streamDrmKey: String? = null,
     isFavorite: Boolean,
+    overlayControlsFocus: FocusRequester,
+    channelListFocus: FocusRequester,
     onBack: () -> Unit,
     onIsPlayingChange: (Boolean) -> Unit,
     onIsMutedChange: (Boolean) -> Unit,
@@ -152,14 +177,42 @@ private fun VideoArea(
     onToggleFullscreen: () -> Unit,
     onToggleFav: () -> Unit,
 ) {
-    val fullscreenFocus = remember { FocusRequester() }
+    val videoSurfaceFocus = remember { FocusRequester() }
+    var showOverlay by remember { mutableStateOf(true) }
+    var overlayHideGeneration by remember { mutableIntStateOf(0) }
+
+    fun bumpOverlayTimer() {
+        if (!isFullscreen) return
+        showOverlay = true
+        overlayHideGeneration++
+    }
 
     LaunchedEffect(isFullscreen) {
-        if (!isFullscreen) {
+        if (isFullscreen) {
+            showOverlay = true
+            overlayHideGeneration++
+        } else {
+            showOverlay = true
             delay(80)
-            fullscreenFocus.requestFocus()
+            overlayControlsFocus.requestFocus()
         }
     }
+
+    LaunchedEffect(isFullscreen, showOverlay, overlayHideGeneration) {
+        if (!isFullscreen || !showOverlay) return@LaunchedEffect
+        delay(FULLSCREEN_OVERLAY_HIDE_MS)
+        showOverlay = false
+        videoSurfaceFocus.requestFocus()
+    }
+
+    LaunchedEffect(isFullscreen, showOverlay) {
+        if (isFullscreen && showOverlay) {
+            delay(80)
+            overlayControlsFocus.requestFocus()
+        }
+    }
+
+    val overlayVisible = !isFullscreen || showOverlay
 
     Box(
         modifier = modifier.background(Color.Black),
@@ -167,7 +220,27 @@ private fun VideoArea(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black),
+                .background(Color.Black)
+                .focusRequester(videoSurfaceFocus)
+                .focusable()
+                .onPreviewKeyEvent { event ->
+                    if (!isFullscreen) return@onPreviewKeyEvent false
+                    when {
+                        !showOverlay &&
+                            event.type == KeyEventType.KeyDown &&
+                            (event.key == Key.DirectionCenter || event.key == Key.Enter) -> {
+                            bumpOverlayTimer()
+                            true
+                        }
+                        showOverlay &&
+                            event.type == KeyEventType.KeyDown &&
+                            event.key != Key.Back -> {
+                            bumpOverlayTimer()
+                            false
+                        }
+                        else -> false
+                    }
+                },
         ) {
             val playerKey = remember(playing.id, playing.streamUrl, streamDrmType, streamDrmKey) {
                 "${playing.id}|${playing.streamUrl}|$streamDrmType|$streamDrmKey"
@@ -223,17 +296,32 @@ private fun VideoArea(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xCC000000), Color.Transparent),
-                    ),
-                )
-                .padding(horizontal = 28.dp, vertical = 20.dp),
+        AnimatedVisibility(
+            visible = overlayVisible,
+            enter = fadeIn(animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(300)),
+            modifier = Modifier.align(Alignment.TopCenter),
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color(0xCC000000), Color.Transparent),
+                        ),
+                    )
+                    .padding(horizontal = 28.dp, vertical = 20.dp)
+                    .onPreviewKeyEvent { event ->
+                        if (isFullscreen ||
+                            event.type != KeyEventType.KeyDown ||
+                            event.key != Key.DirectionRight
+                        ) {
+                            return@onPreviewKeyEvent false
+                        }
+                        channelListFocus.requestFocus()
+                        true
+                    },
+            ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -241,7 +329,10 @@ private fun VideoArea(
             ) {
                 Column {
                     TvFocusableBox(
-                        onClick = onBack,
+                        onClick = {
+                            bumpOverlayTimer()
+                            onBack()
+                        },
                         accentColor = AccentOrange,
                         shape = RoundedCornerShape(10.dp),
                         backgroundColor = Color(0x1AFFFFFF),
@@ -287,12 +378,18 @@ private fun VideoArea(
                     )
                 }
             }
+            }
         }
 
+        AnimatedVisibility(
+            visible = overlayVisible,
+            enter = fadeIn(animationSpec = tween(200)),
+            exit = fadeOut(animationSpec = tween(300)),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.BottomCenter)
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(Color.Transparent, Color(0xE6000000)),
@@ -322,30 +419,51 @@ private fun VideoArea(
             ) {
                 CtrlButton(
                     label = if (isPlaying) "⏸" else "▶",
-                    onClick = { onIsPlayingChange(!isPlaying) },
+                    onClick = {
+                        bumpOverlayTimer()
+                        onIsPlayingChange(!isPlaying)
+                    },
                     big = true,
+                    modifier = Modifier.focusRequester(overlayControlsFocus),
                 )
                 CtrlButton(
                     label = if (isMuted) "🔇" else "🔊",
-                    onClick = { onIsMutedChange(!isMuted) },
+                    onClick = {
+                        bumpOverlayTimer()
+                        onIsMutedChange(!isMuted)
+                    },
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 CtrlButton(
                     label = if (isFavorite) "⭐" else "☆",
-                    onClick = onToggleFav,
+                    onClick = {
+                        bumpOverlayTimer()
+                        onToggleFav()
+                    },
                 )
                 if (!isFullscreen) {
                     CtrlButton(
                         label = "📅",
-                        onClick = { onShowEpgChange(true) },
+                        onClick = {
+                            bumpOverlayTimer()
+                            onShowEpgChange(true)
+                        },
                     )
                 }
                 CtrlButton(
                     label = if (isFullscreen) "⊡" else "⛶",
-                    onClick = onToggleFullscreen,
-                    modifier = Modifier.focusRequester(fullscreenFocus),
+                    onClick = {
+                        bumpOverlayTimer()
+                        onToggleFullscreen()
+                    },
+                    modifier = if (isFullscreen) {
+                        Modifier
+                    } else {
+                        Modifier.focusProperties { right = channelListFocus }
+                    },
                 )
             }
+        }
         }
     }
 }
@@ -422,6 +540,8 @@ private fun EpgRow(item: EpgItem) {
 private fun ChannelListPanel(
     channels: List<Channel>,
     playing: Channel,
+    overlayControlsFocus: FocusRequester,
+    channelListFocus: FocusRequester,
     onChannelSelect: (Channel) -> Unit,
 ) {
     Column(
@@ -454,14 +574,26 @@ private fun ChannelListPanel(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown || event.key != Key.DirectionLeft) {
+                        return@onPreviewKeyEvent false
+                    }
+                    overlayControlsFocus.requestFocus()
+                    true
+                },
         ) {
             channels.forEach { channel ->
                 key(channel.id) {
                 val isActive = playing.id == channel.id
                 TvFocusableBox(
                     onClick = { onChannelSelect(channel) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (isActive) Modifier.focusRequester(channelListFocus)
+                            else Modifier,
+                        ),
                     accentColor = if (isActive) channel.color else AccentOrange,
                     shape = RoundedCornerShape(4.dp),
                     backgroundColor = if (isActive) channel.color.copy(alpha = 0.13f) else Color.Transparent,
