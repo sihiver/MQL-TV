@@ -8,9 +8,10 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +38,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -102,7 +104,7 @@ fun PlayerScreen(
     onIsMutedChange: (Boolean) -> Unit,
     onShowEpgChange: (Boolean) -> Unit,
     onFullscreenChange: (Boolean) -> Unit,
-    onToggleChannelList: () -> Unit,
+    onOpenChannelList: () -> Unit,
     onCloseChannelList: () -> Unit,
     onOpenQualityPicker: () -> Unit,
     onCloseQualityPicker: () -> Unit,
@@ -113,6 +115,11 @@ fun PlayerScreen(
     val overlayControlsFocus = remember { FocusRequester() }
     val channelListButtonFocus = remember { FocusRequester() }
     val channelListFocus = remember { FocusRequester() }
+    var channelListPanelVisible by remember { mutableStateOf(showChannelList) }
+
+    LaunchedEffect(showChannelList) {
+        channelListPanelVisible = showChannelList
+    }
 
     val videoArea: @Composable (Modifier) -> Unit = { modifier ->
         VideoArea(
@@ -121,7 +128,7 @@ fun PlayerScreen(
             isPlaying = isPlaying,
             isMuted = isMuted,
             isFullscreen = isFullscreen,
-            showChannelList = showChannelList,
+            channelListOpen = channelListPanelVisible,
             selectedQualityLabel = selectedQualityLabel,
             selectedQualityHeight = selectedQualityHeight,
             showQualityPicker = showQualityPicker,
@@ -143,7 +150,10 @@ fun PlayerScreen(
             onIsMutedChange = onIsMutedChange,
             onShowEpgChange = onShowEpgChange,
             onToggleFullscreen = { onFullscreenChange(!isFullscreen) },
-            onToggleChannelList = onToggleChannelList,
+            onOpenChannelList = {
+                channelListPanelVisible = true
+                onOpenChannelList()
+            },
             onOpenQualityPicker = onOpenQualityPicker,
             onCloseQualityPicker = onCloseQualityPicker,
             onSelectQuality = onSelectQuality,
@@ -151,36 +161,31 @@ fun PlayerScreen(
         )
     }
 
-    LaunchedEffect(showChannelList, isFullscreen) {
-        if (isFullscreen && showChannelList) {
-            delay(80)
-            channelListFocus.requestFocus()
-        }
-    }
-
     if (isFullscreen) {
         Box(modifier = Modifier.fillMaxSize()) {
             videoArea(Modifier.fillMaxSize())
 
-            AnimatedVisibility(
-                visible = showChannelList,
-                enter = slideInHorizontally(initialOffsetX = { -it }) + fadeIn(tween(220)),
-                exit = slideOutHorizontally(targetOffsetX = { -it }) + fadeOut(tween(180)),
-                modifier = Modifier.align(Alignment.CenterStart),
-            ) {
+            if (channelListPanelVisible) {
+                Box(modifier = Modifier.align(Alignment.CenterStart)) {
                 ChannelListPanel(
                     channels = channels,
                     playing = playing,
                     overlayControlsFocus = channelListButtonFocus,
                     channelListFocus = channelListFocus,
                     dismissOnRight = true,
-                    onClose = onCloseChannelList,
+                    scrollToPlayingOnOpen = true,
+                    onClose = {
+                        channelListPanelVisible = false
+                        onCloseChannelList()
+                    },
                     onChannelSelect = { channel ->
                         onPlayingChange(channel)
                         onIsPlayingChange(true)
+                        channelListPanelVisible = false
                         onCloseChannelList()
                     },
                 )
+                }
             }
         }
     } else {
@@ -221,7 +226,7 @@ private fun VideoArea(
     isPlaying: Boolean,
     isMuted: Boolean,
     isFullscreen: Boolean,
-    showChannelList: Boolean,
+    channelListOpen: Boolean,
     selectedQualityLabel: String,
     selectedQualityHeight: Int? = null,
     showQualityPicker: Boolean,
@@ -240,7 +245,7 @@ private fun VideoArea(
     onIsMutedChange: (Boolean) -> Unit,
     onShowEpgChange: (Boolean) -> Unit,
     onToggleFullscreen: () -> Unit,
-    onToggleChannelList: () -> Unit,
+    onOpenChannelList: () -> Unit,
     onOpenQualityPicker: () -> Unit,
     onCloseQualityPicker: () -> Unit,
     onSelectQuality: (StreamQualityOption) -> Unit,
@@ -293,7 +298,7 @@ private fun VideoArea(
         }
     }
 
-    val overlayVisible = !isFullscreen || showOverlay
+    val overlayVisible = !isFullscreen || (showOverlay && !channelListOpen)
 
     Box(
         modifier = modifier.background(Color.Black),
@@ -496,12 +501,12 @@ private fun VideoArea(
                         label = "📻",
                         onClick = {
                             showOverlay = false
-                            onToggleChannelList()
+                            onOpenChannelList()
                         },
                         modifier = Modifier
                             .focusRequester(channelListButtonFocus)
                             .then(
-                                if (showChannelList) {
+                                if (channelListOpen) {
                                     Modifier.focusProperties { left = channelListFocus }
                                 } else {
                                     Modifier
@@ -846,9 +851,23 @@ private fun ChannelListPanel(
     channelListFocus: FocusRequester,
     dismissOnLeft: Boolean = false,
     dismissOnRight: Boolean = false,
+    scrollToPlayingOnOpen: Boolean = false,
     onClose: (() -> Unit)? = null,
     onChannelSelect: (Channel) -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    val liveCount = remember(channels) { channels.count { it.live } }
+    val playingIndex = remember(channels, playing.id) {
+        channels.indexOfFirst { it.id == playing.id }.coerceAtLeast(0)
+    }
+
+    LaunchedEffect(scrollToPlayingOnOpen, playingIndex) {
+        if (!scrollToPlayingOnOpen) return@LaunchedEffect
+        listState.scrollToItem(playingIndex)
+        withFrameNanos { }
+        runCatching { channelListFocus.requestFocus() }
+    }
+
     Column(
         modifier = Modifier
             .width(300.dp)
@@ -873,7 +892,7 @@ private fun ChannelListPanel(
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
                 Text(
-                    text = "${channels.count { it.live }} channel live",
+                    text = "$liveCount channel live",
                     fontSize = 13.sp,
                     color = TextMuted,
                 )
@@ -898,10 +917,10 @@ private fun ChannelListPanel(
             }
         }
 
-        Column(
+        LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) {
                         return@onPreviewKeyEvent false
@@ -929,74 +948,89 @@ private fun ChannelListPanel(
                     }
                 },
         ) {
-            channels.forEach { channel ->
-                key(channel.id) {
-                val isActive = playing.id == channel.id
-                TvFocusableBox(
-                    onClick = { onChannelSelect(channel) },
+            items(
+                items = channels,
+                key = { it.id },
+            ) { channel ->
+                ChannelListItem(
+                    channel = channel,
+                    isActive = channel.id == playing.id,
+                    channelListFocus = channelListFocus,
+                    onSelect = { onChannelSelect(channel) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChannelListItem(
+    channel: Channel,
+    isActive: Boolean,
+    channelListFocus: FocusRequester,
+    onSelect: () -> Unit,
+) {
+    TvFocusableBox(
+        onClick = onSelect,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isActive) Modifier.focusRequester(channelListFocus) else Modifier,
+            ),
+        accentColor = if (isActive) channel.color else AccentOrange,
+        shape = RoundedCornerShape(4.dp),
+        backgroundColor = if (isActive) channel.color.copy(alpha = 0.13f) else Color.Transparent,
+        focusedBackgroundColor = channel.color.copy(alpha = 0.25f),
+        unfocusedBorderWidth = 0.dp,
+        focusedScale = 1.02f,
+    ) { _ ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(channel.color.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                ChannelLogoContent(
+                    logo = channel.logo,
+                    modifier = Modifier.fillMaxSize(),
+                    fontSize = 20.sp,
+                    decodeSizeDp = 40,
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = channel.name,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = channel.program,
+                    fontSize = 10.sp,
+                    color = TextDim,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (channel.live) {
+                LiveBadge(live = true, small = true)
+            } else {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .then(
-                            if (isActive) Modifier.focusRequester(channelListFocus)
-                            else Modifier,
-                        ),
-                    accentColor = if (isActive) channel.color else AccentOrange,
-                    shape = RoundedCornerShape(4.dp),
-                    backgroundColor = if (isActive) channel.color.copy(alpha = 0.13f) else Color.Transparent,
-                    focusedBackgroundColor = channel.color.copy(alpha = 0.25f),
-                    unfocusedBorderWidth = 0.dp,
-                    focusedScale = 1.02f,
-                ) { _ ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(channel.color.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        ChannelLogoContent(
-                            logo = channel.logo,
-                            modifier = Modifier.fillMaxSize(),
-                            fontSize = 20.sp,
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = channel.name,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = channel.program,
-                            fontSize = 10.sp,
-                            color = TextDim,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    if (channel.live) {
-                        LiveBadge(live = true, small = true)
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(RoundedCornerShape(3.dp))
-                                .background(Color(0xFF333333)),
-                        )
-                    }
-                    }
-                }
-                }
+                        .size(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color(0xFF333333)),
+                )
             }
         }
     }

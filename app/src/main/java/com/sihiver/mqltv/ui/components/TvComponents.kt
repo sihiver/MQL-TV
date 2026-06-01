@@ -14,8 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -27,6 +30,8 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import kotlin.math.roundToInt
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.tv.material3.Text
@@ -287,10 +292,25 @@ fun ChannelLogoContent(
     modifier: Modifier = Modifier,
     fontSize: TextUnit = 24.sp,
     contentScale: ContentScale = ContentScale.Fit,
+    decodeSizeDp: Int? = null,
 ) {
     if (isLogoUrl(logo)) {
+        val context = LocalContext.current
+        val density = LocalDensity.current
+        val model = remember(logo, decodeSizeDp) {
+            ImageRequest.Builder(context)
+                .data(logo)
+                .crossfade(false)
+                .apply {
+                    if (decodeSizeDp != null) {
+                        val px = with(density) { decodeSizeDp.dp.roundToPx() }
+                        size(px)
+                    }
+                }
+                .build()
+        }
         AsyncImage(
-            model = logo,
+            model = model,
             contentDescription = null,
             modifier = modifier,
             contentScale = contentScale,

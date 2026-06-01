@@ -167,7 +167,7 @@ fun AndroidTVApp(
                     onIsMutedChange = playerViewModel::setMuted,
                     onShowEpgChange = playerViewModel::setShowEpg,
                     onFullscreenChange = playerViewModel::setFullscreen,
-                    onToggleChannelList = playerViewModel::toggleChannelList,
+                    onOpenChannelList = { playerViewModel.setShowChannelList(true) },
                     onCloseChannelList = { playerViewModel.setShowChannelList(false) },
                     onOpenQualityPicker = playerViewModel::openQualityPicker,
                     onCloseQualityPicker = playerViewModel::closeQualityPicker,
