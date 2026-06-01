@@ -43,14 +43,7 @@ export function resolveStreamHeaders(streamUrl, dbUserAgent, dbReferer) {
     userAgent = DEFAULT_USER_AGENT;
   }
 
-  if (!referer && url) {
-    try {
-      const u = new URL(url);
-      referer = `${u.protocol}//${u.host}/`;
-    } catch {
-      referer = null;
-    }
-  }
+  // Referer hanya jika ada di DB / pipe — jangan tebak dari host CDN (bisa memicu 403).
 
-  return { url, userAgent, referer };
+  return { url, userAgent, referer: referer || null };
 }

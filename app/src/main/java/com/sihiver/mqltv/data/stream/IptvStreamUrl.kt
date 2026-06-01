@@ -53,21 +53,13 @@ object IptvStreamUrl {
             userAgent = DEFAULT_USER_AGENT
         }
 
-        var referer = apiReferer?.trim().takeUnless { it.isNullOrEmpty() }
+        val referer = apiReferer?.trim().takeUnless { it.isNullOrEmpty() }
             ?: parsed.referer?.trim().takeUnless { it.isNullOrEmpty() }
-        if (referer.isNullOrEmpty()) {
-            referer = runCatching {
-                val u = java.net.URI(url)
-                "${u.scheme}://${u.host}/"
-            }.getOrNull()
-        }
 
         val headers = buildMap {
             put("User-Agent", userAgent)
-            referer?.let {
-                put("Referer", it)
-                put("Origin", runCatching { java.net.URI(it).let { uri -> "${uri.scheme}://${uri.host}" } }.getOrNull() ?: it)
-            }
+            // Jangan kirim Origin — banyak CDN (mis. Transvision) membalas 403 jika Referer+Origin.
+            referer?.let { put("Referer", it) }
         }
 
         return url to headers
