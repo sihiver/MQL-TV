@@ -13,6 +13,7 @@ data class Channel(
     val viewers: String,
     val program: String,
     val time: String,
+    val streamUrl: String = "",
 )
 
 data class EpgItem(
@@ -27,6 +28,8 @@ enum class AppScreen {
     HOME,
     CHANNELS,
     PLAYER,
+    EPG,
+    SEARCH,
     FAVORITES,
     SETTINGS,
 }

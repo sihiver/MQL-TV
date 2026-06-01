@@ -35,8 +35,7 @@ import androidx.tv.material3.Text
 import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.EpgItem
-import com.sihiver.mqltv.data.sampleChannels
-import com.sihiver.mqltv.data.sampleEpgData
+import com.sihiver.mqltv.presentation.player.HlsVideoPlayer
 import com.sihiver.mqltv.ui.components.CtrlButton
 import com.sihiver.mqltv.ui.components.LiveBadge
 import com.sihiver.mqltv.ui.components.TvFocusableBox
@@ -49,6 +48,8 @@ import com.sihiver.mqltv.ui.theme.TextMuted
 @Composable
 fun PlayerScreen(
     playing: Channel,
+    channels: List<Channel>,
+    playerEpg: List<EpgItem>,
     favorites: List<Int>,
     isPlaying: Boolean,
     isMuted: Boolean,
@@ -81,12 +82,13 @@ fun PlayerScreen(
             if (showEpg) {
                 EpgPanel(
                     channelName = playing.name,
-                    epgData = sampleEpgData,
+                    epgData = playerEpg,
                 )
             }
         }
 
         ChannelListPanel(
+            channels = channels,
             playing = playing,
             onChannelSelect = { channel ->
                 onPlayingChange(channel)
@@ -119,30 +121,47 @@ private fun ColumnScope.VideoArea(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(playing.color.copy(alpha = 0.09f), Color.Black),
-                    ),
-                ),
-        )
-
-        Column(
-            modifier = Modifier.align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .background(Color.Black),
         ) {
-            Text(
-                text = playing.logo,
-                fontSize = 120.sp,
-                modifier = Modifier.alpha(if (isPlaying) 1f else 0.3f),
-            )
-            if (!isPlaying) {
-                Text(
-                    text = "⏸ DIJEDA",
-                    fontSize = 14.sp,
-                    color = TextMuted,
-                    letterSpacing = 3.sp,
-                    modifier = Modifier.padding(top = 12.dp),
+            if (playing.streamUrl.isNotBlank()) {
+                HlsVideoPlayer(
+                    streamUrl = playing.streamUrl,
+                    isPlaying = isPlaying,
+                    isMuted = isMuted,
+                    modifier = Modifier.fillMaxSize(),
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(playing.color.copy(alpha = 0.09f), Color.Black),
+                            ),
+                        ),
+                )
+            }
+
+            if (!isPlaying || playing.streamUrl.isBlank()) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = playing.logo,
+                        fontSize = 120.sp,
+                        modifier = Modifier.alpha(if (isPlaying) 1f else 0.3f),
+                    )
+                    if (!isPlaying) {
+                        Text(
+                            text = "⏸ DIJEDA",
+                            fontSize = 14.sp,
+                            color = TextMuted,
+                            letterSpacing = 3.sp,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    }
+                }
             }
         }
 
@@ -337,6 +356,7 @@ private fun EpgRow(item: EpgItem) {
 
 @Composable
 private fun ChannelListPanel(
+    channels: List<Channel>,
     playing: Channel,
     onChannelSelect: (Channel) -> Unit,
 ) {
@@ -361,7 +381,7 @@ private fun ChannelListPanel(
                 modifier = Modifier.padding(bottom = 4.dp),
             )
             Text(
-                text = "${sampleChannels.count { it.live }} channel live",
+                text = "${channels.count { it.live }} channel live",
                 fontSize = 13.sp,
                 color = TextMuted,
             )
@@ -372,7 +392,7 @@ private fun ChannelListPanel(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
         ) {
-            sampleChannels.forEach { channel ->
+            channels.forEach { channel ->
                 key(channel.id) {
                 val isActive = playing.id == channel.id
                 TvFocusableBox(

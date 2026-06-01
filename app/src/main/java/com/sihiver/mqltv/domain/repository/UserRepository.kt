@@ -1,0 +1,24 @@
+package com.sihiver.mqltv.domain.repository
+
+import com.sihiver.mqltv.domain.model.UserProfile
+import kotlinx.coroutines.flow.Flow
+
+data class AuthResult(
+    val token: String,
+    val profile: UserProfile,
+)
+
+data class SubscriptionStatus(
+    val isActive: Boolean,
+    val plan: String,
+    val expiresAt: String,
+    val daysRemaining: Int,
+)
+
+interface UserRepository {
+    val authToken: Flow<String?>
+    suspend fun login(email: String, password: String): AuthResult
+    suspend fun logout()
+    suspend fun getProfile(): UserProfile
+    suspend fun checkSubscription(): SubscriptionStatus
+}

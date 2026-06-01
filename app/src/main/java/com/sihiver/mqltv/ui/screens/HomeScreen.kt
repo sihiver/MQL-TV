@@ -29,7 +29,6 @@ import androidx.tv.material3.Text
 import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.categories
-import com.sihiver.mqltv.data.sampleChannels
 import com.sihiver.mqltv.ui.components.CategoryPills
 import com.sihiver.mqltv.ui.components.ChannelCard
 import com.sihiver.mqltv.ui.components.SectionLabel
@@ -47,14 +46,15 @@ import androidx.compose.foundation.lazy.items
 fun HomeScreen(
     activeCat: String,
     favorites: List<Int>,
+    channels: List<Channel>,
     onActiveCatChange: (String) -> Unit,
     onNavigate: (AppScreen) -> Unit,
     onOpenPlayer: (Channel) -> Unit,
     onToggleFav: (Int) -> Unit,
 ) {
     val clock = useClock()
-    val hero = sampleChannels[3]
-    val filtered = sampleChannels.filter { activeCat == "Semua" || it.category == activeCat }
+    val hero = channels.getOrElse(3) { channels.first() }
+    val filtered = channels.filter { activeCat == "Semua" || it.category == activeCat }
 
     Row(modifier = Modifier.fillMaxSize()) {
         Sidebar(
@@ -117,7 +117,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(
-                        sampleChannels.filter { favorites.contains(it.id) },
+                        channels.filter { favorites.contains(it.id) },
                         key = { it.id },
                     ) { channel ->
                         ChannelCard(
