@@ -1,6 +1,10 @@
 package com.sihiver.mqltv.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -31,6 +35,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -206,6 +211,15 @@ private fun VideoArea(
     val videoSurfaceFocus = remember { FocusRequester() }
     var showOverlay by remember { mutableStateOf(true) }
     var overlayHideGeneration by remember { mutableIntStateOf(0) }
+    var isPlayerBuffering by remember { mutableStateOf(false) }
+    val showChannelLoading = playing.streamUrl.isBlank()
+    val showBufferOverlay = showChannelLoading || isPlayerBuffering
+
+    LaunchedEffect(playing.streamUrl) {
+        if (playing.streamUrl.isBlank()) {
+            isPlayerBuffering = false
+        }
+    }
 
     fun bumpOverlayTimer() {
         if (!isFullscreen) return
@@ -289,6 +303,7 @@ private fun VideoArea(
                         drmType = streamDrmType,
                         drmKey = streamDrmKey,
                         maxVideoHeight = selectedQualityHeight,
+                        onLoadingChange = { isPlayerBuffering = it },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -304,7 +319,13 @@ private fun VideoArea(
                 )
             }
 
-            if (!isPlaying || playing.streamUrl.isBlank()) {
+            if (showBufferOverlay && !showQualityPicker) {
+                PlayerBufferOverlay(
+                    message = if (showChannelLoading) "Memuat channel…" else "Buffering…",
+                )
+            }
+
+            if ((!isPlaying || playing.streamUrl.isBlank()) && !showBufferOverlay) {
                 Column(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -516,6 +537,56 @@ private fun VideoArea(
                 selectedLabel = selectedQualityLabel,
                 onClose = onCloseQualityPicker,
                 onSelect = onSelectQuality,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerBufferOverlay(message: String) {
+    val transition = rememberInfiniteTransition(label = "bufferSpin")
+    val rotation by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "bufferRotation",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x99000000)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .graphicsLayer { rotationZ = rotation }
+                    .border(3.dp, AccentOrange.copy(alpha = 0.35f), RoundedCornerShape(28.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(AccentOrange.copy(alpha = 0.15f)),
+                )
+                Text(
+                    text = "◌",
+                    fontSize = 28.sp,
+                    color = AccentOrange,
+                )
+            }
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = message.uppercase(),
+                fontSize = 12.sp,
+                color = Color.White,
+                letterSpacing = 2.sp,
             )
         }
     }

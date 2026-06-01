@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -32,8 +33,10 @@ fun HlsVideoPlayer(
     drmType: String? = null,
     drmKey: String? = null,
     maxVideoHeight: Int? = null,
+    onLoadingChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val onLoadingChangeState = rememberUpdatedState(onLoadingChange)
     val context = LocalContext.current
 
     val (playbackUrl, requestHeaders) = remember(streamUrl, userAgent, referer) {
@@ -78,7 +81,31 @@ fun HlsVideoPlayer(
     }
 
     DisposableEffect(exoPlayer) {
+        fun emitBufferingState() {
+            val buffering = when (exoPlayer.playbackState) {
+                Player.STATE_BUFFERING -> true
+                Player.STATE_IDLE -> exoPlayer.isLoading
+                else -> false
+            }
+            onLoadingChangeState.value(buffering)
+        }
+
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                emitBufferingState()
+            }
+
+            override fun onIsLoadingChanged(isLoading: Boolean) {
+                if (exoPlayer.playbackState == Player.STATE_IDLE) {
+                    emitBufferingState()
+                }
+            }
+        }
+        exoPlayer.addListener(listener)
+        emitBufferingState()
         onDispose {
+            exoPlayer.removeListener(listener)
+            onLoadingChangeState.value(false)
             exoPlayer.stop()
             exoPlayer.clearMediaItems()
             exoPlayer.release()
@@ -90,6 +117,7 @@ fun HlsVideoPlayer(
         exoPlayer.clearMediaItems()
 
         if (playbackUrl.isBlank()) {
+            onLoadingChangeState.value(false)
             exoPlayer.playWhenReady = false
             return@LaunchedEffect
         }
