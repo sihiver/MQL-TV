@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -35,11 +34,8 @@ import com.sihiver.mqltv.ui.components.ChannelLogoBox
 import com.sihiver.mqltv.ui.components.LiveBadge
 import com.sihiver.mqltv.ui.components.Sidebar
 import com.sihiver.mqltv.ui.components.TopBar
-import com.sihiver.mqltv.ui.components.TvButton
 import com.sihiver.mqltv.ui.components.TvFocusableBox
 import com.sihiver.mqltv.ui.components.useClock
-import com.sihiver.mqltv.ui.theme.AccentOrange
-import com.sihiver.mqltv.ui.theme.SidebarBg
 import com.sihiver.mqltv.ui.theme.TextDim
 import com.sihiver.mqltv.ui.theme.TextMuted
 
@@ -107,13 +103,6 @@ fun ChannelsScreen(
                 }
             }
         }
-
-        ChannelDetailPanel(
-            channel = selected,
-            isFavorite = favorites.contains(selected.id),
-            onWatch = { onOpenPlayer(selected) },
-            onToggleFav = { onToggleFav(selected.id) },
-        )
     }
 }
 
@@ -172,79 +161,5 @@ private fun ChannelGridItem(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ChannelDetailPanel(
-    channel: Channel,
-    isFavorite: Boolean,
-    onWatch: () -> Unit,
-    onToggleFav: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .width(280.dp)
-            .fillMaxHeight()
-            .background(SidebarBg)
-            .border(width = 1.dp, color = Color(0x0FFFFFFF))
-            .padding(horizontal = 22.dp, vertical = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            text = "INFO CHANNEL",
-            fontSize = 11.sp,
-            color = AccentOrange,
-            letterSpacing = 2.sp,
-        )
-        ChannelLogoBox(channel = channel, size = 80, fontSize = 40, cornerRadius = 22)
-        Column {
-            Text(text = channel.name, fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color.White)
-            Text(text = channel.category, fontSize = 12.sp, color = TextMuted, modifier = Modifier.padding(top = 2.dp))
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0x0DFFFFFF))
-                .padding(14.dp),
-        ) {
-            Column {
-                Text(text = "SEDANG TAYANG", fontSize = 10.sp, color = TextMuted, letterSpacing = 1.sp, modifier = Modifier.padding(bottom = 6.dp))
-                Text(text = channel.program, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(bottom = 4.dp))
-                Text(text = "🕐 ${channel.time}", fontSize = 11.sp, color = AccentOrange)
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "👥", fontSize = 20.sp)
-            Column {
-                Text(text = channel.viewers, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                Text(text = "sedang menonton", fontSize = 10.sp, color = TextMuted)
-            }
-        }
-        if (channel.live) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(AccentOrange),
-                )
-                Text(
-                    text = "SIARAN LANGSUNG",
-                    fontSize = 12.sp,
-                    color = AccentOrange,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                )
-            }
-        } else {
-            Text(text = "Tidak sedang siaran", fontSize = 12.sp, color = TextDim)
-        }
-        TvButton(text = "▶  Tonton Sekarang", onClick = onWatch, primary = true)
-        TvButton(
-            text = if (isFavorite) "⭐  Hapus Favorit" else "☆  Tambah Favorit",
-            onClick = onToggleFav,
-        )
     }
 }
