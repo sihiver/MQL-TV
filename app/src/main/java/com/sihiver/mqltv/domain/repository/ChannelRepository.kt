@@ -13,4 +13,6 @@ interface ChannelRepository {
     fun getCategories(): List<String>
     suspend fun refreshFromLocalSeed()
     suspend fun refreshFromApi(): Boolean
+
+    suspend fun getTrendingChannels(days: Int = 30, limit: Int = 10): List<Channel>
 }

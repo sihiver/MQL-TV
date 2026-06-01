@@ -79,4 +79,22 @@ class ChannelRepositoryImpl @Inject constructor(
         saveChannels(all)
         return true
     }
+
+    override suspend fun getTrendingChannels(days: Int, limit: Int): List<Channel> {
+        if (tokenStore.token == null) {
+            return getAllChannels().take(limit)
+        }
+        return runCatching {
+            api.getTrendingChannels(days = days, limit = limit)
+                .data
+                .map { it.toDomain() }
+                .distinctBy { it.id }
+                .distinctBy { it.name.trim().lowercase() }
+        }.getOrElse {
+            getAllChannels()
+                .distinctBy { it.id }
+                .distinctBy { it.name.trim().lowercase() }
+                .take(limit)
+        }
+    }
 }

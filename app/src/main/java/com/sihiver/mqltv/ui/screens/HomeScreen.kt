@@ -17,8 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
-import com.sihiver.mqltv.data.categories
-import com.sihiver.mqltv.ui.components.CategoryPills
 import com.sihiver.mqltv.ui.components.ChannelCard
 import com.sihiver.mqltv.ui.components.SectionLabel
 import com.sihiver.mqltv.ui.components.Sidebar
@@ -27,16 +25,14 @@ import com.sihiver.mqltv.ui.components.useClock
 
 @Composable
 fun HomeScreen(
-    activeCat: String,
+    featuredChannels: List<Channel>,
+    favoriteChannels: List<Channel>,
     favorites: List<Int>,
-    channels: List<Channel>,
-    onActiveCatChange: (String) -> Unit,
     onNavigate: (AppScreen) -> Unit,
     onOpenPlayer: (Channel) -> Unit,
     onToggleFav: (Int) -> Unit,
 ) {
     val clock = useClock()
-    val filtered = channels.filter { activeCat == "Semua" || it.category == activeCat }
 
     Row(modifier = Modifier.fillMaxSize()) {
         Sidebar(
@@ -55,13 +51,6 @@ fun HomeScreen(
                     .padding(horizontal = 32.dp)
                     .padding(bottom = 24.dp),
             ) {
-                CategoryPills(
-                    categories = categories,
-                    activeCat = activeCat,
-                    onSelect = onActiveCatChange,
-                    modifier = Modifier.padding(bottom = 20.dp),
-                )
-
                 SectionLabel("📡 Channel Unggulan")
                 LazyRow(
                     modifier = Modifier
@@ -69,7 +58,7 @@ fun HomeScreen(
                         .padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    items(filtered.take(10), key = { it.id }) { channel ->
+                    items(featuredChannels, key = { it.id }) { channel ->
                         ChannelCard(
                             channel = channel,
                             isFavorite = favorites.contains(channel.id),
@@ -88,10 +77,7 @@ fun HomeScreen(
                         .padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    items(
-                        channels.filter { favorites.contains(it.id) },
-                        key = { it.id },
-                    ) { channel ->
+                    items(favoriteChannels, key = { it.id }) { channel ->
                         ChannelCard(
                             channel = channel,
                             isFavorite = true,

@@ -109,6 +109,9 @@ data class FavoriteDto(
     @SerializedName("channel_id") val channelId: Int,
     val name: String? = null,
     val category: String? = null,
+    @SerializedName("logo_url") val logoUrl: String? = null,
+    @SerializedName("is_live") val isLive: Boolean? = null,
+    @SerializedName("viewer_count") val viewerCount: Int? = null,
 )
 
 data class ApiErrorResponse(val error: String? = null)

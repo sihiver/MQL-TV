@@ -103,15 +103,14 @@ fun AndroidTVApp(
         else -> AppWrap {
         when (navState.currentScreen) {
             AppScreen.HOME -> {
-                if (homeState.isLoading && homeState.channels.isEmpty()) {
+                if (homeState.isLoading && homeState.featuredChannels.isEmpty()) {
                     LoadingBox()
                     return@AppWrap
                 }
                 HomeScreen(
-                    activeCat = homeState.activeCategory,
+                    featuredChannels = homeState.featuredChannels,
+                    favoriteChannels = homeState.favoriteChannels,
                     favorites = homeState.favorites,
-                    channels = homeState.channels,
-                    onActiveCatChange = homeViewModel::setCategory,
                     onNavigate = navViewModel::navigate,
                     onOpenPlayer = ::openPlayer,
                     onToggleFav = homeViewModel::toggleFavorite,

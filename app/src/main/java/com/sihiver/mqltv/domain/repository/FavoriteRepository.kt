@@ -1,5 +1,6 @@
 package com.sihiver.mqltv.domain.repository
 
+import com.sihiver.mqltv.domain.model.Channel
 import kotlinx.coroutines.flow.Flow
 
 interface FavoriteRepository {
@@ -10,4 +11,6 @@ interface FavoriteRepository {
     suspend fun toggleFavorite(channelId: Int): Boolean
     suspend fun isFavorite(channelId: Int): Boolean
     suspend fun syncFromApi()
+
+    suspend fun getFavoriteChannels(): List<Channel>
 }

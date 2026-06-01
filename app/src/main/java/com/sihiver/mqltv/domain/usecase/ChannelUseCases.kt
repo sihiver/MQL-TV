@@ -14,6 +14,13 @@ class GetChannelsUseCase @Inject constructor(
     fun categories(): List<String> = repository.getCategories()
 }
 
+class GetTrendingChannelsUseCase @Inject constructor(
+    private val repository: ChannelRepository,
+) {
+    suspend operator fun invoke(days: Int = 30, limit: Int = 10): List<Channel> =
+        repository.getTrendingChannels(days = days, limit = limit)
+}
+
 class SearchChannelUseCase @Inject constructor(
     private val repository: ChannelRepository,
 ) {

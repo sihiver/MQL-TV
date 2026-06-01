@@ -41,6 +41,12 @@ interface ApiService {
     @GET("api/channels/search")
     suspend fun searchChannels(@Query("q") query: String): SearchChannelsResponse
 
+    @GET("api/channels/trending")
+    suspend fun getTrendingChannels(
+        @Query("days") days: Int = 30,
+        @Query("limit") limit: Int = 10,
+    ): ChannelsResponse
+
     @GET("api/channels/{id}/stream")
     suspend fun getStream(@Path("id") channelId: Int): StreamResponse
 

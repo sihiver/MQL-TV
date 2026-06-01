@@ -10,6 +10,7 @@ import {
   getPackageBySlug,
   channelAllowedForPackage,
 } from "../services/packageAccess.js";
+import { recordChannelView, getTrendingChannels } from "../services/channelViews.js";
 
 const router = Router();
 router.use(authenticate);
@@ -104,7 +105,34 @@ router.get("/search", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-async function loadChannelForStream(req, res) {
+// GET /api/channels/trending?limit=10&days=30 — paling banyak ditonton
+router.get("/trending", async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 90);
+
+    const access = await resolvePackageAccess(req.user.id);
+    const cacheKey = `channels:trending:v2:${access.planSlug}:${days}:${limit}`;
+    const cached = await redis.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
+    const rows = await getTrendingChannels(db, access, { limit, days });
+    const payload = {
+      data: rows,
+      total: rows.length,
+      days,
+      limit,
+      plan: access.planSlug,
+    };
+
+    await redis.setex(cacheKey, 120, JSON.stringify(payload));
+    res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
+async function loadChannelForStream(req, res, next) {
   const sub = await db.query(
     `SELECT s.plan, s.expires_at FROM subscriptions s
      WHERE s.user_id = $1 AND s.status = 'active'
@@ -175,6 +203,8 @@ router.get("/:id/stream", async (req, res, next) => {
     if (!ch) return;
     const headers = resolveStreamHeaders(ch.stream_url, ch.user_agent, ch.referer);
     const { streamUrl, token, expiresAt } = generateStreamToken(headers.url, req.user.id);
+
+    recordChannelView(db, req.user.id, ch.id).catch(() => {});
 
     res.json({
       streamUrl,

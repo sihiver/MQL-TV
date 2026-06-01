@@ -1,6 +1,7 @@
 package com.sihiver.mqltv.data.network
 
 import com.sihiver.mqltv.data.network.dto.ChannelDto
+import com.sihiver.mqltv.data.network.dto.FavoriteDto
 import com.sihiver.mqltv.data.network.dto.EpgProgramDto
 import com.sihiver.mqltv.data.network.dto.MeResponse
 import com.sihiver.mqltv.data.network.dto.UserDto
@@ -35,6 +36,18 @@ fun ChannelDto.toDomain(): Channel {
         time = "",
         streamUrl = "",
     )
+}
+
+fun FavoriteDto.toChannel(): Channel? {
+    val channelName = name?.takeIf { it.isNotBlank() } ?: return null
+    return ChannelDto(
+        id = channelId,
+        name = channelName,
+        category = category,
+        logoUrl = logoUrl,
+        isLive = isLive,
+        viewerCount = viewerCount,
+    ).toDomain()
 }
 
 fun channelColor(name: String): Long {
