@@ -17,6 +17,7 @@ data class SubscriptionStatus(
 
 interface UserRepository {
     val authToken: Flow<String?>
+    suspend fun restoreSession(): Boolean
     suspend fun login(email: String, password: String): AuthResult
     suspend fun logout()
     suspend fun getProfile(): UserProfile

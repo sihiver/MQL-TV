@@ -22,8 +22,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.tv.material3.Text
@@ -173,7 +176,7 @@ fun ChannelCard(
                     .border(2.dp, channel.color.copy(alpha = 0.33f), RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = channel.logo, fontSize = 28.sp)
+                ChannelLogoContent(logo = channel.logo, fontSize = 28.sp)
             }
             Text(
                 text = channel.name,
@@ -274,6 +277,30 @@ fun CtrlButton(
     }
 }
 
+private fun isLogoUrl(logo: String): Boolean =
+    logo.startsWith("http://", ignoreCase = true) || logo.startsWith("https://", ignoreCase = true)
+
+@Composable
+fun ChannelLogoContent(
+    logo: String,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 24.sp,
+    contentScale: ContentScale = ContentScale.Fit,
+) {
+    if (isLogoUrl(logo)) {
+        AsyncImage(
+            model = logo,
+            contentDescription = null,
+            modifier = modifier,
+            contentScale = contentScale,
+        )
+    } else {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            Text(text = logo, fontSize = fontSize)
+        }
+    }
+}
+
 @Composable
 fun ChannelLogoBox(
     channel: Channel,
@@ -293,7 +320,13 @@ fun ChannelLogoBox(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = channel.logo, fontSize = fontSize.sp)
+        ChannelLogoContent(
+            logo = channel.logo,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (isLogoUrl(channel.logo)) Modifier.padding(4.dp) else Modifier),
+            fontSize = fontSize.sp,
+        )
     }
 }
 

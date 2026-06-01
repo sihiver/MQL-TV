@@ -1,5 +1,6 @@
 import { db } from "../config/database.js";
 import { redis } from "../config/redis.js";
+import { parseIptvStreamUrl } from "../utils/iptvStreamUrl.js";
 
 const BATCH_SIZE = 200;
 
@@ -19,15 +20,16 @@ export function parseGvisionJson(data) {
     for (const ch of cat.channels || []) {
       if (!ch?.stream_url || !ch?.name) continue;
 
+      const parsed = parseIptvStreamUrl(ch.stream_url);
       rows.push({
         name: String(ch.name).slice(0, 255),
-        stream_url: ch.stream_url,
+        stream_url: parsed.url,
         category: String(ch.group || cat.name || "Lainnya").slice(0, 80),
         logo_url: ch.logo_url || null,
         drm_type: ch.drm_type || null,
         drm_key: ch.drm_key || null,
-        user_agent: ch.user_agent || null,
-        referer: ch.referer || null,
+        user_agent: ch.user_agent || parsed.userAgent || null,
+        referer: ch.referer || parsed.referer || null,
         source_category: String(sourceCategory).slice(0, 80),
       });
     }

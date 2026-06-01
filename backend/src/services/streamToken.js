@@ -1,8 +1,10 @@
 import crypto from "crypto";
+import { parseIptvStreamUrl } from "../utils/iptvStreamUrl.js";
 
 const STREAM_TTL_SEC = 4 * 60 * 60; // 4 jam
 
 export function generateStreamToken(streamUrl, userId) {
+  const { url: cleanUrl } = parseIptvStreamUrl(streamUrl);
   const expiresAt = Math.floor(Date.now() / 1000) + STREAM_TTL_SEC;
   const payload = `${userId}:${expiresAt}`;
   const token = crypto
@@ -10,8 +12,8 @@ export function generateStreamToken(streamUrl, userId) {
     .update(payload)
     .digest("hex");
 
-  const separator = streamUrl.includes("?") ? "&" : "?";
-  const streamUrlWithToken = `${streamUrl}${separator}uid=${userId}&exp=${expiresAt}&sig=${token}`;
+  const separator = cleanUrl.includes("?") ? "&" : "?";
+  const streamUrlWithToken = `${cleanUrl}${separator}uid=${userId}&exp=${expiresAt}&sig=${token}`;
 
   return { streamUrl: streamUrlWithToken, token, expiresAt };
 }

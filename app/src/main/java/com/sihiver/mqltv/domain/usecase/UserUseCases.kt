@@ -6,9 +6,13 @@ import javax.inject.Inject
 
 class LoginUseCase @Inject constructor(
     private val userRepository: UserRepository,
+    private val syncContent: SyncContentUseCase,
 ) {
-    suspend operator fun invoke(email: String, password: String): AuthResult =
-        userRepository.login(email, password)
+    suspend operator fun invoke(email: String, password: String): AuthResult {
+        val result = userRepository.login(email, password)
+        syncContent()
+        return result
+    }
 
     suspend fun logout() = userRepository.logout()
 }

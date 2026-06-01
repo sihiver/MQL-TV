@@ -3,6 +3,7 @@ import { db }     from "../config/database.js";
 import { redis }  from "../config/redis.js";
 import { authenticate, isAdmin } from "../middleware/auth.js";
 import { generateStreamToken }   from "../services/streamToken.js";
+import { resolveStreamHeaders }  from "../utils/iptvStreamUrl.js";
 import {
   resolvePackageAccess,
   getPackageBySlug,
@@ -138,7 +139,8 @@ router.get("/:id/stream", async (req, res, next) => {
     }
 
     const ch = channel.rows[0];
-    const { streamUrl, token, expiresAt } = generateStreamToken(ch.stream_url, req.user.id);
+    const headers = resolveStreamHeaders(ch.stream_url, ch.user_agent, ch.referer);
+    const { streamUrl, token, expiresAt } = generateStreamToken(headers.url, req.user.id);
 
     res.json({
       streamUrl,
@@ -146,8 +148,8 @@ router.get("/:id/stream", async (req, res, next) => {
       expiresAt,
       drmType: ch.drm_type,
       drmKey: ch.drm_key,
-      userAgent: ch.user_agent,
-      referer: ch.referer,
+      userAgent: headers.userAgent,
+      referer: headers.referer,
     });
   } catch (err) { next(err); }
 });

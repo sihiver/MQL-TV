@@ -58,9 +58,10 @@ class PlayerViewModel @Inject constructor(
             val domain = ChannelMapper.toDomain(channel)
             val epg = EpgMapper.toUiList(getEpg.forChannel(channel.id))
             val stream = playStream(domain)
+            val playingWithStream = channel.copy(streamUrl = stream.url)
             _state.update {
                 it.copy(
-                    playingChannel = channel,
+                    playingChannel = playingWithStream,
                     playerEpg = epg,
                     streamInfo = stream,
                     isPlaying = true,

@@ -30,6 +30,7 @@ import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.categories
 import com.sihiver.mqltv.ui.components.CategoryPills
+import com.sihiver.mqltv.ui.components.ChannelLogoContent
 import com.sihiver.mqltv.ui.components.ChannelCard
 import com.sihiver.mqltv.ui.components.SectionLabel
 import com.sihiver.mqltv.ui.components.Sidebar
@@ -173,7 +174,11 @@ private fun HeroSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(40.dp),
         ) {
-            Text(text = hero.logo, fontSize = 100.sp)
+            ChannelLogoContent(
+                logo = hero.logo,
+                modifier = Modifier.size(140.dp),
+                fontSize = 100.sp,
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "🔴 SEDANG TAYANG SEKARANG",

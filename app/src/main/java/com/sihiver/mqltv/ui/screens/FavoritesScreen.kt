@@ -41,6 +41,7 @@ import com.sihiver.mqltv.data.FavoritesViewMode
 import com.sihiver.mqltv.data.sampleChannels
 import com.sihiver.mqltv.ui.components.CategoryPills
 import com.sihiver.mqltv.ui.components.ChannelLogoBox
+import com.sihiver.mqltv.ui.components.ChannelLogoContent
 import com.sihiver.mqltv.ui.components.LiveBadge
 import com.sihiver.mqltv.ui.components.Sidebar
 import com.sihiver.mqltv.ui.components.ToastNotification
@@ -487,7 +488,11 @@ private fun AddChannelPanel(
                                     .background(ch.color.copy(alpha = 0.2f)),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text(text = ch.logo, fontSize = 18.sp)
+                                ChannelLogoContent(
+                                    logo = ch.logo,
+                                    modifier = Modifier.fillMaxSize(),
+                                    fontSize = 18.sp,
+                                )
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = ch.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)

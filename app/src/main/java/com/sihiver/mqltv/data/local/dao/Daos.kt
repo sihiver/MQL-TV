@@ -60,6 +60,9 @@ interface FavoriteDao {
 
     @Query("DELETE FROM favorites WHERE channelId = :channelId")
     suspend fun delete(channelId: Int)
+
+    @Query("DELETE FROM favorites")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -78,4 +81,7 @@ interface EpgDao {
 
     @Query("DELETE FROM epg_programs")
     suspend fun deleteAll()
+
+    @Query("DELETE FROM epg_programs WHERE channelId = :channelId")
+    suspend fun deleteForChannel(channelId: Int)
 }

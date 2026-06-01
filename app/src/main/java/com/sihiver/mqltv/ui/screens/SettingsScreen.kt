@@ -35,6 +35,8 @@ import androidx.tv.material3.Text
 import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.AppSettings
 import com.sihiver.mqltv.data.SettingsSection
+import com.sihiver.mqltv.domain.model.UserProfile
+import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import com.sihiver.mqltv.ui.components.SelectInput
 import com.sihiver.mqltv.ui.components.SelectOption
 import com.sihiver.mqltv.ui.components.SettingRow
@@ -51,6 +53,8 @@ import com.sihiver.mqltv.ui.theme.TextMuted
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
+    profile: UserProfile? = null,
+    subscription: SubscriptionStatus? = null,
     onSettingsChange: (AppSettings) -> Unit,
     onNavigate: (AppScreen) -> Unit,
 ) {
@@ -140,7 +144,12 @@ fun SettingsScreen(
                     SettingsSection.SUBTITLE -> SubtitleSettings(settings, ::update)
                     SettingsSection.NETWORK -> NetworkSettings(settings, ::update)
                     SettingsSection.PARENTAL -> ParentalSettings(settings, ::update)
-                    SettingsSection.ACCOUNT -> AccountSettings(settings, ::update)
+                    SettingsSection.ACCOUNT -> AccountSettings(
+                        settings = settings,
+                        profile = profile,
+                        subscription = subscription,
+                        update = ::update,
+                    )
                     SettingsSection.APPEARANCE -> AppearanceSettings(settings, ::update)
                     SettingsSection.ABOUT -> AboutSettings()
                 }
@@ -371,7 +380,12 @@ private fun ParentalSettings(settings: AppSettings, update: ((AppSettings) -> Ap
 }
 
 @Composable
-private fun AccountSettings(settings: AppSettings, update: ((AppSettings) -> AppSettings) -> Unit) {
+private fun AccountSettings(
+    settings: AppSettings,
+    profile: UserProfile?,
+    subscription: SubscriptionStatus?,
+    update: ((AppSettings) -> AppSettings) -> Unit,
+) {
     SettingsSectionTitle("👤 Akun & Perangkat")
     Row(
         modifier = Modifier
@@ -394,8 +408,17 @@ private fun AccountSettings(settings: AppSettings, update: ((AppSettings) -> App
             Text(text = "👤", fontSize = 26.sp)
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = "Ahmad Rizki", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-            Text(text = "ahmad@email.com", fontSize = 12.sp, color = TextMuted)
+            Text(
+                text = profile?.name ?: "Belum login",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+            )
+            Text(
+                text = profile?.email ?: "Masuk untuk sinkron channel",
+                fontSize = 12.sp,
+                color = TextMuted,
+            )
             Box(
                 modifier = Modifier
                     .padding(top = 6.dp)
@@ -403,12 +426,23 @@ private fun AccountSettings(settings: AppSettings, update: ((AppSettings) -> App
                     .background(AccentOrange.copy(alpha = 0.2f))
                     .padding(horizontal = 12.dp, vertical = 3.dp),
             ) {
-                Text(text = "✨ Premium Annual", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AccentOrange)
+                Text(
+                    text = "✨ ${subscription?.plan ?: profile?.plan ?: "—"}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AccentOrange,
+                )
             }
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(text = "Berlaku hingga", fontSize = 12.sp, color = TextMuted)
-            Text(text = "31 Des 2025", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(top = 2.dp))
+            Text(
+                text = subscription?.expiresAt ?: profile?.expiresAt ?: "—",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.padding(top = 2.dp),
+            )
             Box(
                 modifier = Modifier
                     .padding(top = 8.dp)
@@ -425,9 +459,15 @@ private fun AccountSettings(settings: AppSettings, update: ((AppSettings) -> App
                         .background(AccentOrange),
                 )
             }
-            Text(text = "275 hari tersisa", fontSize = 10.sp, color = TextMuted, modifier = Modifier.padding(top = 3.dp))
+            Text(
+                text = "${subscription?.daysRemaining ?: profile?.daysRemaining ?: 0} hari tersisa",
+                fontSize = 10.sp,
+                color = TextMuted,
+                modifier = Modifier.padding(top = 3.dp),
+            )
         }
     }
+
     SettingRow("Nama Perangkat", "Nama yang muncul di daftar perangkat aktif") {
         Text(
             text = settings.deviceName,

@@ -7,6 +7,7 @@ import com.sihiver.mqltv.domain.model.UserProfile
 import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import com.sihiver.mqltv.domain.usecase.CheckSubscriptionUseCase
 import com.sihiver.mqltv.domain.usecase.LoginUseCase
+import com.sihiver.mqltv.domain.repository.UserRepository
 import com.sihiver.mqltv.domain.usecase.ObserveSettingsUseCase
 import com.sihiver.mqltv.domain.usecase.UpdateSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,6 +30,7 @@ class SettingsViewModel @Inject constructor(
     private val updateSettingsUseCase: UpdateSettingsUseCase,
     private val loginUseCase: LoginUseCase,
     private val checkSubscription: CheckSubscriptionUseCase,
+    private val userRepository: UserRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsUiState())
@@ -41,8 +43,14 @@ class SettingsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            val sub = checkSubscription()
-            _state.update { it.copy(subscription = sub) }
+            runCatching {
+                val profile = userRepository.getProfile()
+                val sub = checkSubscription()
+                _state.update { it.copy(profile = profile, subscription = sub) }
+            }.onFailure {
+                val sub = checkSubscription()
+                _state.update { it.copy(subscription = sub) }
+            }
         }
     }
 
@@ -56,8 +64,11 @@ class SettingsViewModel @Inject constructor(
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
-            val result = loginUseCase(email, password)
-            _state.update { it.copy(profile = result.profile) }
+            runCatching {
+                val result = loginUseCase(email, password)
+                val sub = checkSubscription()
+                _state.update { it.copy(profile = result.profile, subscription = sub) }
+            }
         }
     }
 }

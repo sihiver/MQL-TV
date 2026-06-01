@@ -8,4 +8,5 @@ interface EpgRepository {
     suspend fun getProgramsForChannel(channelId: Int): List<EpgProgram>
     suspend fun getAllPrograms(): List<EpgProgram>
     suspend fun syncFromNetwork(epgUrl: String)
+    suspend fun syncChannelFromApi(channelId: Int)
 }

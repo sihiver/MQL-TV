@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,6 +30,9 @@ class UserPreferences @Inject constructor(
             if (token == null) prefs.remove(KEY_TOKEN) else prefs[KEY_TOKEN] = token
         }
     }
+
+    suspend fun getTokenOnce(): String? =
+        dataStore.data.first()[KEY_TOKEN]
 
     companion object {
         private val KEY_TOKEN = stringPreferencesKey("auth_token")

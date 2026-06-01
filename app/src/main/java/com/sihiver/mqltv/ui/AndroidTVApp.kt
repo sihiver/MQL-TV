@@ -16,6 +16,7 @@ import com.sihiver.mqltv.presentation.viewmodel.ChannelViewModel
 import com.sihiver.mqltv.presentation.viewmodel.EPGViewModel
 import com.sihiver.mqltv.presentation.viewmodel.FavoritesViewModel
 import com.sihiver.mqltv.presentation.viewmodel.HomeViewModel
+import com.sihiver.mqltv.presentation.viewmodel.LoginViewModel
 import com.sihiver.mqltv.presentation.viewmodel.NavViewModel
 import com.sihiver.mqltv.presentation.viewmodel.PlayerViewModel
 import com.sihiver.mqltv.presentation.viewmodel.SearchViewModel
@@ -26,6 +27,7 @@ import com.sihiver.mqltv.ui.screens.ChannelsScreen
 import com.sihiver.mqltv.ui.screens.EpgScreen
 import com.sihiver.mqltv.ui.screens.FavoritesScreen
 import com.sihiver.mqltv.ui.screens.HomeScreen
+import com.sihiver.mqltv.ui.screens.LoginScreen
 import com.sihiver.mqltv.ui.screens.PlayerScreen
 import com.sihiver.mqltv.ui.screens.SearchScreen
 import com.sihiver.mqltv.ui.screens.SettingsScreen
@@ -41,7 +43,9 @@ fun AndroidTVApp(
     searchViewModel: SearchViewModel = hiltViewModel(),
     favoritesViewModel: FavoritesViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
+    loginViewModel: LoginViewModel = hiltViewModel(),
 ) {
+    val loginState by loginViewModel.state.collectAsState()
     val navState by navViewModel.state.collectAsState()
     val homeState by homeViewModel.state.collectAsState()
     val channelState by channelViewModel.state.collectAsState()
@@ -62,7 +66,23 @@ fun AndroidTVApp(
         navState.playingChannel?.let { playerViewModel.loadChannel(it) }
     }
 
-    AppWrap {
+    LaunchedEffect(loginState.isLoggedIn) {
+        if (loginState.isLoggedIn) {
+            homeViewModel.refresh()
+            channelViewModel.refresh()
+        }
+    }
+
+    when {
+        loginState.isCheckingSession -> LoadingBox("Memeriksa sesi…")
+        !loginState.isLoggedIn -> LoginScreen(
+            state = loginState,
+            onEmailChange = loginViewModel::setEmail,
+            onPasswordChange = loginViewModel::setPassword,
+            onLogin = loginViewModel::login,
+            onUseDemo = loginViewModel::useDemoAccount,
+        )
+        else -> AppWrap {
         when (navState.currentScreen) {
             AppScreen.HOME -> {
                 if (homeState.isLoading && homeState.channels.isEmpty()) {
@@ -109,6 +129,10 @@ fun AndroidTVApp(
                     isPlaying = playerState.isPlaying,
                     isMuted = playerState.isMuted,
                     showEpg = playerState.showEpgOverlay,
+                    streamUserAgent = playerState.streamInfo?.userAgent,
+                    streamReferer = playerState.streamInfo?.referer,
+                    streamDrmType = playerState.streamInfo?.drmType,
+                    streamDrmKey = playerState.streamInfo?.drmKey,
                     onNavigate = navViewModel::navigate,
                     onPlayingChange = { playerViewModel.switchChannel(it) },
                     onIsPlayingChange = playerViewModel::setPlaying,
@@ -150,6 +174,8 @@ fun AndroidTVApp(
 
             AppScreen.SETTINGS -> SettingsScreen(
                 settings = settingsState.settings,
+                profile = settingsState.profile,
+                subscription = settingsState.subscription,
                 onSettingsChange = settingsViewModel::updateSettings,
                 onNavigate = navViewModel::navigate,
             )
@@ -158,15 +184,16 @@ fun AndroidTVApp(
         if (navState.toastMessage != null) {
             ToastNotification(message = navState.toastMessage!!)
         }
+        }
     }
 }
 
 @Composable
-private fun LoadingBox() {
+private fun LoadingBox(message: String = "Memuat NusaVision…") {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        Text("Memuat NusaVision...", color = Color.White)
+        Text(message, color = Color.White)
     }
 }

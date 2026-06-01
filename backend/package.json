@@ -14,7 +14,8 @@
       "db:import-gvision": "node scripts/import-gvision-json.js",
       "db:migrate-package-channels": "node scripts/migrate-004-package-channels.js",
       "db:migrate-epg": "node scripts/migrate-005-epg.js",
-      "epg:sync": "node scripts/sync-epg.js"
+      "epg:sync": "node scripts/sync-epg.js",
+      "db:fix-stream-urls": "node scripts/fix-stream-urls.js"
     },
     "dependencies": {
       "dotenv":     "^16.4.5",

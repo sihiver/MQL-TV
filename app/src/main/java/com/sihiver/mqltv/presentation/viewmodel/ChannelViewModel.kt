@@ -55,6 +55,10 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
+    fun refresh() {
+        loadChannels(_state.value.activeCategory)
+    }
+
     fun selectChannel(channel: Channel) {
         _state.update { it.copy(selectedChannel = channel) }
     }

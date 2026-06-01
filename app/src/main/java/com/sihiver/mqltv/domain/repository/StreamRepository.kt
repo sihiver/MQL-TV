@@ -6,6 +6,10 @@ data class StreamInfo(
     val channelId: Int,
     val url: String,
     val format: StreamFormat,
+    val userAgent: String? = null,
+    val referer: String? = null,
+    val drmType: String? = null,
+    val drmKey: String? = null,
 )
 
 enum class StreamFormat { HLS, DASH, MPEG_TS, UNKNOWN }

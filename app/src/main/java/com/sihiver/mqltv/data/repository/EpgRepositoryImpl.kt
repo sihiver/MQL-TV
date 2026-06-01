@@ -4,6 +4,8 @@ import com.sihiver.mqltv.data.local.dao.EpgDao
 import com.sihiver.mqltv.data.local.mapper.toDomain
 import com.sihiver.mqltv.data.local.mapper.toEntity
 import com.sihiver.mqltv.data.network.ApiService
+import com.sihiver.mqltv.data.network.AuthTokenStore
+import com.sihiver.mqltv.data.network.toDomain
 import com.sihiver.mqltv.data.source.LocalEpgDataSource
 import com.sihiver.mqltv.domain.model.EpgProgram
 import com.sihiver.mqltv.domain.repository.EpgRepository
@@ -15,14 +17,19 @@ import javax.inject.Singleton
 @Singleton
 class EpgRepositoryImpl @Inject constructor(
     private val epgDao: EpgDao,
-    private val apiService: ApiService,
+    private val api: ApiService,
+    private val tokenStore: AuthTokenStore,
 ) : EpgRepository {
 
     override fun observePrograms(): Flow<List<EpgProgram>> =
         epgDao.observeAll().map { list -> list.map { it.toDomain() } }
 
     override suspend fun getProgramsForChannel(channelId: Int): List<EpgProgram> {
-        ensureSeeded()
+        if (tokenStore.token != null) {
+            syncChannelFromApi(channelId)
+        } else {
+            ensureSeeded()
+        }
         return epgDao.getForChannel(channelId).map { it.toDomain() }
     }
 
@@ -32,11 +39,20 @@ class EpgRepositoryImpl @Inject constructor(
     }
 
     override suspend fun syncFromNetwork(epgUrl: String) {
-        runCatching {
-            val body = apiService.fetchText(epgUrl).string()
-            if (body.isBlank()) return
-            // Demo: keep local schedule; real XMLTV parsing can replace this later.
+        if (tokenStore.token == null) {
             ensureSeeded(force = true)
+            return
+        }
+        // URL diabaikan — EPG diambil dari backend per channel
+    }
+
+    override suspend fun syncChannelFromApi(channelId: Int) {
+        if (tokenStore.token == null) return
+        val response = api.getEpg(channelId)
+        val programs = response.data.mapNotNull { it.toDomain(channelId) }
+        epgDao.deleteForChannel(channelId)
+        if (programs.isNotEmpty()) {
+            epgDao.insertAll(programs.map { it.toEntity() })
         }
     }
 

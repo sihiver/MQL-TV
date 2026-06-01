@@ -1,17 +1,16 @@
 package com.sihiver.mqltv.di
 
-import android.content.Context
+import com.sihiver.mqltv.BuildConfig
 import com.sihiver.mqltv.data.network.ApiService
+import com.sihiver.mqltv.data.network.AuthInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import java.io.File
+import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -19,19 +18,16 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val CACHE_SIZE = 10L * 1024 * 1024
-
     @Provides
     @Singleton
-    fun provideOkHttpClient(@ApplicationContext context: Context): OkHttpClient {
-        val cacheDir = File(context.cacheDir, "http_cache")
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
         }
         return OkHttpClient.Builder()
-            .cache(Cache(cacheDir, CACHE_SIZE))
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(45, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor(authInterceptor)
             .addInterceptor(logging)
             .build()
     }
@@ -40,8 +36,9 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(client: OkHttpClient): Retrofit =
         Retrofit.Builder()
-            .baseUrl("https://iptv.example.com/")
+            .baseUrl(BuildConfig.API_BASE_URL)
             .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
 
     @Provides

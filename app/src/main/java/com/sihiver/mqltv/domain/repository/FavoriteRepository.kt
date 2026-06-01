@@ -9,4 +9,5 @@ interface FavoriteRepository {
     suspend fun removeFavorite(channelId: Int)
     suspend fun toggleFavorite(channelId: Int): Boolean
     suspend fun isFavorite(channelId: Int): Boolean
+    suspend fun syncFromApi()
 }

@@ -1,5 +1,8 @@
 package com.sihiver.mqltv.data.repository
 
+import com.sihiver.mqltv.data.network.ApiService
+import com.sihiver.mqltv.data.network.AuthTokenStore
+import com.sihiver.mqltv.data.stream.IptvStreamUrl
 import com.sihiver.mqltv.domain.model.Channel
 import com.sihiver.mqltv.domain.repository.StreamFormat
 import com.sihiver.mqltv.domain.repository.StreamInfo
@@ -8,9 +11,27 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class StreamRepositoryImpl @Inject constructor() : StreamRepository {
+class StreamRepositoryImpl @Inject constructor(
+    private val api: ApiService,
+    private val tokenStore: AuthTokenStore,
+) : StreamRepository {
 
     override suspend fun resolveStream(channel: Channel): StreamInfo {
+        if (tokenStore.token != null) {
+            runCatching {
+                val res = api.getStream(channel.id)
+                val cleanUrl = IptvStreamUrl.resolvePlaybackUrl(res.streamUrl)
+                return StreamInfo(
+                    channelId = channel.id,
+                    url = cleanUrl,
+                    format = detectFormat(cleanUrl),
+                    userAgent = res.userAgent,
+                    referer = res.referer,
+                    drmType = res.drmType,
+                    drmKey = res.drmKey,
+                )
+            }
+        }
         val url = channel.streamUrl.ifBlank { DEMO_HLS }
         return StreamInfo(
             channelId = channel.id,

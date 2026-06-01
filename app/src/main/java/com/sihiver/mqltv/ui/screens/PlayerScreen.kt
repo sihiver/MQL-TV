@@ -36,6 +36,7 @@ import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.EpgItem
 import com.sihiver.mqltv.presentation.player.HlsVideoPlayer
+import com.sihiver.mqltv.ui.components.ChannelLogoContent
 import com.sihiver.mqltv.ui.components.CtrlButton
 import com.sihiver.mqltv.ui.components.LiveBadge
 import com.sihiver.mqltv.ui.components.TvFocusableBox
@@ -54,6 +55,10 @@ fun PlayerScreen(
     isPlaying: Boolean,
     isMuted: Boolean,
     showEpg: Boolean,
+    streamUserAgent: String? = null,
+    streamReferer: String? = null,
+    streamDrmType: String? = null,
+    streamDrmKey: String? = null,
     onNavigate: (AppScreen) -> Unit,
     onPlayingChange: (Channel) -> Unit,
     onIsPlayingChange: (Boolean) -> Unit,
@@ -71,6 +76,10 @@ fun PlayerScreen(
                 isPlaying = isPlaying,
                 isMuted = isMuted,
                 showEpg = showEpg,
+                streamUserAgent = streamUserAgent,
+                streamReferer = streamReferer,
+                streamDrmType = streamDrmType,
+                streamDrmKey = streamDrmKey,
                 isFavorite = favorites.contains(playing.id),
                 onBack = { onNavigate(AppScreen.HOME) },
                 onIsPlayingChange = onIsPlayingChange,
@@ -105,6 +114,10 @@ private fun ColumnScope.VideoArea(
     isPlaying: Boolean,
     isMuted: Boolean,
     showEpg: Boolean,
+    streamUserAgent: String? = null,
+    streamReferer: String? = null,
+    streamDrmType: String? = null,
+    streamDrmKey: String? = null,
     isFavorite: Boolean,
     onBack: () -> Unit,
     onIsPlayingChange: (Boolean) -> Unit,
@@ -128,6 +141,10 @@ private fun ColumnScope.VideoArea(
                     streamUrl = playing.streamUrl,
                     isPlaying = isPlaying,
                     isMuted = isMuted,
+                    userAgent = streamUserAgent,
+                    referer = streamReferer,
+                    drmType = streamDrmType,
+                    drmKey = streamDrmKey,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -147,10 +164,12 @@ private fun ColumnScope.VideoArea(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(
-                        text = playing.logo,
+                    ChannelLogoContent(
+                        logo = playing.logo,
+                        modifier = Modifier
+                            .size(160.dp)
+                            .alpha(if (isPlaying) 1f else 0.3f),
                         fontSize = 120.sp,
-                        modifier = Modifier.alpha(if (isPlaying) 1f else 0.3f),
                     )
                     if (!isPlaying) {
                         Text(
@@ -419,7 +438,11 @@ private fun ChannelListPanel(
                             .background(channel.color.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(text = channel.logo, fontSize = 20.sp)
+                        ChannelLogoContent(
+                            logo = channel.logo,
+                            modifier = Modifier.fillMaxSize(),
+                            fontSize = 20.sp,
+                        )
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(

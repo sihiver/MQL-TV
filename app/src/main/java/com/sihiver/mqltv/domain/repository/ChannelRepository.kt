@@ -12,4 +12,5 @@ interface ChannelRepository {
     suspend fun saveChannels(channels: List<Channel>)
     fun getCategories(): List<String>
     suspend fun refreshFromLocalSeed()
+    suspend fun refreshFromApi(): Boolean
 }
