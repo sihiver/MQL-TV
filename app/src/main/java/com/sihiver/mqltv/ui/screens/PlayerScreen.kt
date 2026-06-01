@@ -8,6 +8,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -84,6 +86,7 @@ fun PlayerScreen(
     isMuted: Boolean,
     showEpg: Boolean,
     isFullscreen: Boolean = false,
+    showChannelList: Boolean = false,
     selectedQualityLabel: String = "AUTO",
     selectedQualityHeight: Int? = null,
     showQualityPicker: Boolean = false,
@@ -99,6 +102,8 @@ fun PlayerScreen(
     onIsMutedChange: (Boolean) -> Unit,
     onShowEpgChange: (Boolean) -> Unit,
     onFullscreenChange: (Boolean) -> Unit,
+    onToggleChannelList: () -> Unit,
+    onCloseChannelList: () -> Unit,
     onOpenQualityPicker: () -> Unit,
     onCloseQualityPicker: () -> Unit,
     onSelectQuality: (StreamQualityOption) -> Unit,
@@ -106,6 +111,7 @@ fun PlayerScreen(
 ) {
     val isFavorite = favorites.contains(playing.id)
     val overlayControlsFocus = remember { FocusRequester() }
+    val channelListButtonFocus = remember { FocusRequester() }
     val channelListFocus = remember { FocusRequester() }
 
     val videoArea: @Composable (Modifier) -> Unit = { modifier ->
@@ -115,6 +121,7 @@ fun PlayerScreen(
             isPlaying = isPlaying,
             isMuted = isMuted,
             isFullscreen = isFullscreen,
+            showChannelList = showChannelList,
             selectedQualityLabel = selectedQualityLabel,
             selectedQualityHeight = selectedQualityHeight,
             showQualityPicker = showQualityPicker,
@@ -126,6 +133,7 @@ fun PlayerScreen(
             streamDrmKey = streamDrmKey,
             isFavorite = isFavorite,
             overlayControlsFocus = overlayControlsFocus,
+            channelListButtonFocus = channelListButtonFocus,
             channelListFocus = channelListFocus,
             onBack = {
                 if (isFullscreen) onFullscreenChange(false)
@@ -135,6 +143,7 @@ fun PlayerScreen(
             onIsMutedChange = onIsMutedChange,
             onShowEpgChange = onShowEpgChange,
             onToggleFullscreen = { onFullscreenChange(!isFullscreen) },
+            onToggleChannelList = onToggleChannelList,
             onOpenQualityPicker = onOpenQualityPicker,
             onCloseQualityPicker = onCloseQualityPicker,
             onSelectQuality = onSelectQuality,
@@ -142,8 +151,38 @@ fun PlayerScreen(
         )
     }
 
+    LaunchedEffect(showChannelList, isFullscreen) {
+        if (isFullscreen && showChannelList) {
+            delay(80)
+            channelListFocus.requestFocus()
+        }
+    }
+
     if (isFullscreen) {
-        videoArea(Modifier.fillMaxSize())
+        Box(modifier = Modifier.fillMaxSize()) {
+            videoArea(Modifier.fillMaxSize())
+
+            AnimatedVisibility(
+                visible = showChannelList,
+                enter = slideInHorizontally(initialOffsetX = { -it }) + fadeIn(tween(220)),
+                exit = slideOutHorizontally(targetOffsetX = { -it }) + fadeOut(tween(180)),
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                ChannelListPanel(
+                    channels = channels,
+                    playing = playing,
+                    overlayControlsFocus = channelListButtonFocus,
+                    channelListFocus = channelListFocus,
+                    dismissOnRight = true,
+                    onClose = onCloseChannelList,
+                    onChannelSelect = { channel ->
+                        onPlayingChange(channel)
+                        onIsPlayingChange(true)
+                        onCloseChannelList()
+                    },
+                )
+            }
+        }
     } else {
         Row(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -182,6 +221,7 @@ private fun VideoArea(
     isPlaying: Boolean,
     isMuted: Boolean,
     isFullscreen: Boolean,
+    showChannelList: Boolean,
     selectedQualityLabel: String,
     selectedQualityHeight: Int? = null,
     showQualityPicker: Boolean,
@@ -193,12 +233,14 @@ private fun VideoArea(
     streamDrmKey: String? = null,
     isFavorite: Boolean,
     overlayControlsFocus: FocusRequester,
+    channelListButtonFocus: FocusRequester,
     channelListFocus: FocusRequester,
     onBack: () -> Unit,
     onIsPlayingChange: (Boolean) -> Unit,
     onIsMutedChange: (Boolean) -> Unit,
     onShowEpgChange: (Boolean) -> Unit,
     onToggleFullscreen: () -> Unit,
+    onToggleChannelList: () -> Unit,
     onOpenQualityPicker: () -> Unit,
     onCloseQualityPicker: () -> Unit,
     onSelectQuality: (StreamQualityOption) -> Unit,
@@ -242,8 +284,11 @@ private fun VideoArea(
     }
 
     LaunchedEffect(isFullscreen, showOverlay) {
-        if (isFullscreen && showOverlay) {
-            delay(80)
+        if (!showOverlay) return@LaunchedEffect
+        delay(80)
+        if (isFullscreen) {
+            channelListButtonFocus.requestFocus()
+        } else {
             overlayControlsFocus.requestFocus()
         }
     }
@@ -446,6 +491,24 @@ private fun VideoArea(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                if (isFullscreen) {
+                    CtrlButton(
+                        label = "📻",
+                        onClick = {
+                            showOverlay = false
+                            onToggleChannelList()
+                        },
+                        modifier = Modifier
+                            .focusRequester(channelListButtonFocus)
+                            .then(
+                                if (showChannelList) {
+                                    Modifier.focusProperties { left = channelListFocus }
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                    )
+                }
                 CtrlButton(
                     label = if (isPlaying) "⏸" else "▶",
                     onClick = {
@@ -453,7 +516,11 @@ private fun VideoArea(
                         onIsPlayingChange(!isPlaying)
                     },
                     big = true,
-                    modifier = Modifier.focusRequester(overlayControlsFocus),
+                    modifier = if (isFullscreen) {
+                        Modifier
+                    } else {
+                        Modifier.focusRequester(overlayControlsFocus)
+                    },
                 )
                 CtrlButton(
                     label = if (isMuted) "🔇" else "🔊",
@@ -777,6 +844,9 @@ private fun ChannelListPanel(
     playing: Channel,
     overlayControlsFocus: FocusRequester,
     channelListFocus: FocusRequester,
+    dismissOnLeft: Boolean = false,
+    dismissOnRight: Boolean = false,
+    onClose: (() -> Unit)? = null,
     onChannelSelect: (Channel) -> Unit,
 ) {
     Column(
@@ -786,24 +856,46 @@ private fun ChannelListPanel(
             .background(SidebarBg)
             .border(width = 1.dp, color = Color(0x0FFFFFFF)),
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .border(width = 1.dp, color = Color(0x0FFFFFFF))
-                .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 14.dp),
+                .padding(start = 20.dp, end = 12.dp, top = 20.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "DAFTAR CHANNEL",
-                fontSize = 11.sp,
-                color = AccentOrange,
-                letterSpacing = 2.sp,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-            Text(
-                text = "${channels.count { it.live }} channel live",
-                fontSize = 13.sp,
-                color = TextMuted,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "DAFTAR CHANNEL",
+                    fontSize = 11.sp,
+                    color = AccentOrange,
+                    letterSpacing = 2.sp,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                Text(
+                    text = "${channels.count { it.live }} channel live",
+                    fontSize = 13.sp,
+                    color = TextMuted,
+                )
+            }
+            if (onClose != null) {
+                TvFocusableBox(
+                    onClick = onClose,
+                    accentColor = AccentOrange,
+                    shape = RoundedCornerShape(8.dp),
+                    backgroundColor = Color(0x1AFFFFFF),
+                    focusedBackgroundColor = AccentOrange.copy(alpha = 0.35f),
+                    unfocusedBorderWidth = 0.dp,
+                    focusedScale = 1.05f,
+                ) {
+                    Text(
+                        text = "✕",
+                        fontSize = 14.sp,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
+            }
         }
 
         Column(
@@ -811,11 +903,30 @@ private fun ChannelListPanel(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .onPreviewKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown || event.key != Key.DirectionLeft) {
+                    if (event.type != KeyEventType.KeyDown) {
                         return@onPreviewKeyEvent false
                     }
-                    overlayControlsFocus.requestFocus()
-                    true
+                    when (event.key) {
+                        Key.DirectionLeft -> {
+                            if (dismissOnLeft && onClose != null) {
+                                onClose()
+                            } else if (!dismissOnLeft && !dismissOnRight) {
+                                overlayControlsFocus.requestFocus()
+                            } else {
+                                return@onPreviewKeyEvent false
+                            }
+                            true
+                        }
+                        Key.DirectionRight -> {
+                            if (dismissOnRight && onClose != null) {
+                                onClose()
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        else -> false
+                    }
                 },
         ) {
             channels.forEach { channel ->

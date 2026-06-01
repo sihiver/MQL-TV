@@ -33,6 +33,7 @@ data class PlayerUiState(
     val isMuted: Boolean = false,
     val showEpgOverlay: Boolean = false,
     val isFullscreen: Boolean = false,
+    val showChannelList: Boolean = false,
     val showQualityPicker: Boolean = false,
     val qualitiesLoading: Boolean = false,
     val qualities: List<StreamQualityOption> = emptyList(),
@@ -188,12 +189,21 @@ class PlayerViewModel @Inject constructor(
                 isFullscreen = fullscreen,
                 showEpgOverlay = if (fullscreen) false else it.showEpgOverlay,
                 showQualityPicker = if (fullscreen) false else it.showQualityPicker,
+                showChannelList = false,
             )
         }
     }
 
     fun toggleFullscreen() {
         setFullscreen(!_state.value.isFullscreen)
+    }
+
+    fun setShowChannelList(show: Boolean) {
+        _state.update { it.copy(showChannelList = show) }
+    }
+
+    fun toggleChannelList() {
+        _state.update { it.copy(showChannelList = !it.showChannelList) }
     }
 
     fun toggleFavorite(channelId: Int) {

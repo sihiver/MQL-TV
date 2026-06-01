@@ -80,6 +80,8 @@ fun AndroidTVApp(
     BackHandler(enabled = navState.currentScreen == AppScreen.PLAYER) {
         when {
             playerState.showQualityPicker -> playerViewModel.closeQualityPicker()
+            playerState.showChannelList && playerState.isFullscreen ->
+                playerViewModel.setShowChannelList(false)
             playerState.isFullscreen -> playerViewModel.setFullscreen(false)
             else -> navViewModel.navigate(AppScreen.HOME)
         }
@@ -149,6 +151,7 @@ fun AndroidTVApp(
                     isMuted = playerState.isMuted,
                     showEpg = playerState.showEpgOverlay,
                     isFullscreen = playerState.isFullscreen,
+                    showChannelList = playerState.showChannelList,
                     selectedQualityLabel = playerState.selectedQualityLabel,
                     selectedQualityHeight = playerState.selectedQualityHeight,
                     showQualityPicker = playerState.showQualityPicker,
@@ -164,6 +167,8 @@ fun AndroidTVApp(
                     onIsMutedChange = playerViewModel::setMuted,
                     onShowEpgChange = playerViewModel::setShowEpg,
                     onFullscreenChange = playerViewModel::setFullscreen,
+                    onToggleChannelList = playerViewModel::toggleChannelList,
+                    onCloseChannelList = { playerViewModel.setShowChannelList(false) },
                     onOpenQualityPicker = playerViewModel::openQualityPicker,
                     onCloseQualityPicker = playerViewModel::closeQualityPicker,
                     onSelectQuality = { option ->
