@@ -84,15 +84,6 @@ fun AndroidTVApp(
         }
     }
 
-    LaunchedEffect(loginState.isLoggedIn, navState.currentScreen) {
-        if (!loginState.isLoggedIn) return@LaunchedEffect
-        when (navState.currentScreen) {
-            AppScreen.HOME -> homeViewModel.refreshOnOpen()
-            AppScreen.CHANNELS -> channelViewModel.refreshOnOpen()
-            else -> Unit
-        }
-    }
-
     when {
         loginState.isCheckingSession -> LoadingBox("Memeriksa sesi…")
         !loginState.isLoggedIn -> LoginScreen(

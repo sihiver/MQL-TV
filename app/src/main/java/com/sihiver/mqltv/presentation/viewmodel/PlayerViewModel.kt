@@ -14,6 +14,7 @@ import com.sihiver.mqltv.domain.usecase.GetChannelsUseCase
 import com.sihiver.mqltv.domain.usecase.GetEPGUseCase
 import com.sihiver.mqltv.domain.usecase.ManageFavoriteUseCase
 import com.sihiver.mqltv.domain.usecase.PlayStreamUseCase
+import com.sihiver.mqltv.domain.usecase.SyncContentUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -56,6 +57,7 @@ class PlayerViewModel @Inject constructor(
     private val getChannels: GetChannelsUseCase,
     private val getEpg: GetEPGUseCase,
     private val playStream: PlayStreamUseCase,
+    private val syncContent: SyncContentUseCase,
     private val streamRepository: StreamRepository,
     private val manageFavorite: ManageFavoriteUseCase,
 ) : ViewModel() {
@@ -63,6 +65,7 @@ class PlayerViewModel @Inject constructor(
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
     private var loadChannelJob: Job? = null
+    private var lastChannelSyncMs = 0L
 
     init {
         viewModelScope.launch {
@@ -98,6 +101,7 @@ class PlayerViewModel @Inject constructor(
         }
 
         loadChannelJob = viewModelScope.launch {
+            syncChannelsInBackground()
             runCatching {
                 val domain = withContext(Dispatchers.Default) {
                     ChannelMapper.toDomain(channel)
@@ -127,6 +131,20 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun switchChannel(channel: Channel) = loadChannel(channel)
+
+    /** Sync daftar channel dari server saat mulai play (background, tidak blokir stream). */
+    private fun syncChannelsInBackground() {
+        val now = System.currentTimeMillis()
+        if (now - lastChannelSyncMs < CHANNEL_SYNC_COOLDOWN_MS) return
+        lastChannelSyncMs = now
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { syncContent() }
+        }
+    }
+
+    private companion object {
+        const val CHANNEL_SYNC_COOLDOWN_MS = 60_000L
+    }
 
     fun openQualityPicker() {
         val channelId = _state.value.playingChannel?.id ?: return

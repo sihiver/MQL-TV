@@ -49,11 +49,6 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
-    /** Sinkronkan channel dari server — dipanggil saat layar Channel dibuka. */
-    fun refreshOnOpen() {
-        loadChannels(_state.value.activeCategory)
-    }
-
     fun setCategory(category: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, activeCategory = category) }
@@ -72,23 +67,12 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
-    fun refresh() = refreshOnOpen()
-
     fun selectChannel(channel: Channel) {
         _state.update { it.copy(selectedChannel = channel) }
     }
 
     fun toggleFavorite(channelId: Int) {
         viewModelScope.launch { manageFavorite.toggle(channelId) }
-    }
-
-    private fun loadChannels(category: String) {
-        viewModelScope.launch {
-            val showLoading = _state.value.filteredChannels.isEmpty()
-            if (showLoading) _state.update { it.copy(isLoading = true) }
-            runCatching { getChannels.refreshFromApi() }
-            reloadFromLocal(category, refreshCategories = true)
-        }
     }
 
     private suspend fun reloadFromLocal(category: String, refreshCategories: Boolean = false) {

@@ -8,7 +8,6 @@ import com.sihiver.mqltv.domain.repository.ChannelRepository
 import com.sihiver.mqltv.domain.repository.FavoriteRepository
 import com.sihiver.mqltv.domain.usecase.GetTrendingChannelsUseCase
 import com.sihiver.mqltv.domain.usecase.ManageFavoriteUseCase
-import com.sihiver.mqltv.domain.usecase.SyncContentUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +26,6 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val syncContent: SyncContentUseCase,
     private val getTrendingChannels: GetTrendingChannelsUseCase,
     private val channelRepository: ChannelRepository,
     private val favoriteRepository: FavoriteRepository,
@@ -52,15 +50,14 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+        loadUi()
     }
 
-    /** Sinkronkan dari server lalu muat ulang UI — dipanggil saat layar Beranda dibuka. */
-    fun refreshOnOpen() {
+    private fun loadUi() {
         viewModelScope.launch {
             val showLoading = _state.value.featuredChannels.isEmpty()
             if (showLoading) _state.update { it.copy(isLoading = true) }
             runCatching {
-                syncContent()
                 val featuredDeferred = async { getTrendingChannels(days = 30, limit = 10) }
                 val favoritesDeferred = async { favoriteRepository.getFavoriteChannels() }
                 val featured = ChannelMapper.toUiList(featuredDeferred.await())
@@ -79,8 +76,6 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-
-    fun refresh() = refreshOnOpen()
 
     fun toggleFavorite(channelId: Int) {
         viewModelScope.launch {
