@@ -15,8 +15,10 @@ import com.sihiver.mqltv.domain.usecase.GetEPGUseCase
 import com.sihiver.mqltv.domain.usecase.ManageFavoriteUseCase
 import com.sihiver.mqltv.domain.usecase.PlayStreamUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -70,8 +72,21 @@ class PlayerViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            val channels = ChannelMapper.toUiList(getChannels("Semua"))
+            val channels = withContext(Dispatchers.Default) {
+                ChannelMapper.toUiList(getChannels("Semua"))
+            }
             _state.update { it.copy(channels = channels) }
+        }
+    }
+
+    fun prepareFullscreenPlayback() {
+        _state.update {
+            it.copy(
+                isFullscreen = true,
+                showChannelList = false,
+                showEpgOverlay = false,
+                showQualityPicker = false,
+            )
         }
     }
 
@@ -93,9 +108,15 @@ class PlayerViewModel @Inject constructor(
         }
 
         loadChannelJob = viewModelScope.launch {
-            val domain = ChannelMapper.toDomain(channel)
-            val epg = EpgMapper.toUiList(getEpg.forChannel(channel.id))
-            val stream = playStream(domain)
+            val domain = withContext(Dispatchers.Default) {
+                ChannelMapper.toDomain(channel)
+            }
+            val epg = withContext(Dispatchers.IO) {
+                EpgMapper.toUiList(getEpg.forChannel(channel.id))
+            }
+            val stream = withContext(Dispatchers.IO) {
+                playStream(domain)
+            }
 
             if (_state.value.playingChannel?.id != channel.id) return@launch
 

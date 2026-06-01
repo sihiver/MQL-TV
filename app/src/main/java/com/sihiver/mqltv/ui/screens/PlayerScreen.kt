@@ -121,6 +121,13 @@ fun PlayerScreen(
         channelListPanelVisible = showChannelList
     }
 
+    LaunchedEffect(channelListPanelVisible) {
+        if (channelListPanelVisible && !showChannelList) {
+            delay(1)
+            onOpenChannelList()
+        }
+    }
+
     val videoArea: @Composable (Modifier) -> Unit = { modifier ->
         VideoArea(
             modifier = modifier,
@@ -150,10 +157,7 @@ fun PlayerScreen(
             onIsMutedChange = onIsMutedChange,
             onShowEpgChange = onShowEpgChange,
             onToggleFullscreen = { onFullscreenChange(!isFullscreen) },
-            onOpenChannelList = {
-                channelListPanelVisible = true
-                onOpenChannelList()
-            },
+            onRequestChannelListPanel = { channelListPanelVisible = true },
             onOpenQualityPicker = onOpenQualityPicker,
             onCloseQualityPicker = onCloseQualityPicker,
             onSelectQuality = onSelectQuality,
@@ -245,7 +249,7 @@ private fun VideoArea(
     onIsMutedChange: (Boolean) -> Unit,
     onShowEpgChange: (Boolean) -> Unit,
     onToggleFullscreen: () -> Unit,
-    onOpenChannelList: () -> Unit,
+    onRequestChannelListPanel: () -> Unit,
     onOpenQualityPicker: () -> Unit,
     onCloseQualityPicker: () -> Unit,
     onSelectQuality: (StreamQualityOption) -> Unit,
@@ -501,7 +505,7 @@ private fun VideoArea(
                         label = "📻",
                         onClick = {
                             showOverlay = false
-                            onOpenChannelList()
+                            onRequestChannelListPanel()
                         },
                         modifier = Modifier
                             .focusRequester(channelListButtonFocus)
@@ -863,7 +867,10 @@ private fun ChannelListPanel(
 
     LaunchedEffect(scrollToPlayingOnOpen, playingIndex) {
         if (!scrollToPlayingOnOpen) return@LaunchedEffect
-        listState.scrollToItem(playingIndex)
+        delay(48)
+        if (playingIndex > 0) {
+            runCatching { listState.scrollToItem(playingIndex) }
+        }
         withFrameNanos { }
         runCatching { channelListFocus.requestFocus() }
     }
@@ -963,6 +970,38 @@ private fun ChannelListPanel(
     }
 }
 
+private fun channelListLogoLabel(channel: Channel): String {
+    val logo = channel.logo.trim()
+    return when {
+        logo.startsWith("http://", ignoreCase = true) ||
+            logo.startsWith("https://", ignoreCase = true) ->
+            channel.name.take(1).uppercase()
+        logo.isNotEmpty() -> logo.take(2)
+        else -> channel.name.take(1).uppercase()
+    }
+}
+
+@Composable
+private fun ChannelListLogoBadge(channel: Channel) {
+    val label = remember(channel.id, channel.logo, channel.name) {
+        channelListLogoLabel(channel)
+    }
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(channel.color.copy(alpha = 0.2f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = channel.color,
+        )
+    }
+}
+
 @Composable
 private fun ChannelListItem(
     channel: Channel,
@@ -991,20 +1030,7 @@ private fun ChannelListItem(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(channel.color.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                ChannelLogoContent(
-                    logo = channel.logo,
-                    modifier = Modifier.fillMaxSize(),
-                    fontSize = 20.sp,
-                    decodeSizeDp = 40,
-                )
-            }
+            ChannelListLogoBadge(channel = channel)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = channel.name,

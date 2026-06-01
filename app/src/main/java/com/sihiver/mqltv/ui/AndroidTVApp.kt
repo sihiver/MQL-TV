@@ -7,12 +7,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Text
 import com.sihiver.mqltv.data.AppScreen
+import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.presentation.viewmodel.ChannelViewModel
 import com.sihiver.mqltv.presentation.viewmodel.EPGViewModel
 import com.sihiver.mqltv.presentation.viewmodel.FavoritesViewModel
@@ -33,6 +35,8 @@ import com.sihiver.mqltv.ui.screens.PlayerScreen
 import com.sihiver.mqltv.ui.screens.SearchScreen
 import com.sihiver.mqltv.ui.screens.SettingsScreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 
 @Composable
 fun AndroidTVApp(
@@ -55,6 +59,15 @@ fun AndroidTVApp(
     val searchState by searchViewModel.state.collectAsState()
     val favoritesState by favoritesViewModel.state.collectAsState()
     val settingsState by settingsViewModel.state.collectAsState()
+    val appScope = rememberCoroutineScope()
+
+    fun openPlayer(channel: Channel) {
+        appScope.launch {
+            playerViewModel.prepareFullscreenPlayback()
+            yield()
+            navViewModel.openPlayer(channel)
+        }
+    }
 
     LaunchedEffect(navState.toastMessage) {
         if (navState.toastMessage != null) {
@@ -116,7 +129,7 @@ fun AndroidTVApp(
                     channels = homeState.channels,
                     onActiveCatChange = homeViewModel::setCategory,
                     onNavigate = navViewModel::navigate,
-                    onOpenPlayer = navViewModel::openPlayer,
+                    onOpenPlayer = ::openPlayer,
                     onToggleFav = homeViewModel::toggleFavorite,
                 )
             }
@@ -187,7 +200,7 @@ fun AndroidTVApp(
                 selectedChannelId = epgState.selectedChannelId,
                 onFilterChannel = epgViewModel::filterByChannel,
                 onNavigate = navViewModel::navigate,
-                onOpenPlayer = navViewModel::openPlayer,
+                onOpenPlayer = ::openPlayer,
             )
 
             AppScreen.SEARCH -> SearchScreen(
@@ -196,13 +209,13 @@ fun AndroidTVApp(
                 onQueryChange = searchViewModel::search,
                 onVoiceSearch = searchViewModel::voiceSearch,
                 onNavigate = navViewModel::navigate,
-                onOpenPlayer = navViewModel::openPlayer,
+                onOpenPlayer = ::openPlayer,
             )
 
             AppScreen.FAVORITES -> FavoritesScreen(
                 favorites = favoritesState.favorites,
                 onNavigate = navViewModel::navigate,
-                onOpenPlayer = navViewModel::openPlayer,
+                onOpenPlayer = ::openPlayer,
                 onAddFavorite = { id ->
                     favoritesViewModel.addFavorite(id) { navViewModel.showToast(it) }
                 },
