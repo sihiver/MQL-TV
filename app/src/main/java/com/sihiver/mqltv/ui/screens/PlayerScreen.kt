@@ -67,7 +67,6 @@ import com.sihiver.mqltv.ui.components.ChannelLogoContent
 import com.sihiver.mqltv.ui.components.CtrlButton
 import com.sihiver.mqltv.ui.components.LiveBadge
 import com.sihiver.mqltv.ui.components.TvFocusableBox
-import com.sihiver.mqltv.ui.components.useClock
 import com.sihiver.mqltv.ui.theme.AccentOrange
 import com.sihiver.mqltv.ui.theme.SidebarBg
 import com.sihiver.mqltv.ui.theme.TextDim
@@ -105,7 +104,6 @@ fun PlayerScreen(
     onSelectQuality: (StreamQualityOption) -> Unit,
     onToggleFav: (Int) -> Unit,
 ) {
-    val clock = useClock()
     val isFavorite = favorites.contains(playing.id)
     val overlayControlsFocus = remember { FocusRequester() }
     val channelListFocus = remember { FocusRequester() }
@@ -114,7 +112,6 @@ fun PlayerScreen(
         VideoArea(
             modifier = modifier,
             playing = playing,
-            clock = clock,
             isPlaying = isPlaying,
             isMuted = isMuted,
             isFullscreen = isFullscreen,
@@ -182,7 +179,6 @@ fun PlayerScreen(
 private fun VideoArea(
     modifier: Modifier,
     playing: Channel,
-    clock: String,
     isPlaying: Boolean,
     isMuted: Boolean,
     isFullscreen: Boolean,
@@ -376,61 +372,40 @@ private fun VideoArea(
                         true
                     },
             ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
-            ) {
-                Column {
-                    TvFocusableBox(
-                        onClick = {
-                            bumpOverlayTimer()
-                            onBack()
-                        },
-                        accentColor = AccentOrange,
-                        shape = RoundedCornerShape(10.dp),
-                        backgroundColor = Color(0x1AFFFFFF),
-                        focusedBackgroundColor = AccentOrange.copy(alpha = 0.35f),
-                        unfocusedBorderWidth = 0.dp,
-                        focusedScale = 1.05f,
-                    ) {
-                        Text(
-                            text = "← Kembali",
-                            fontSize = 12.sp,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(text = "● SIARAN LANGSUNG", fontSize = 11.sp, color = AccentOrange, letterSpacing = 2.sp)
+            Column {
+                TvFocusableBox(
+                    onClick = {
+                        bumpOverlayTimer()
+                        onBack()
+                    },
+                    accentColor = AccentOrange,
+                    shape = RoundedCornerShape(10.dp),
+                    backgroundColor = Color(0x1AFFFFFF),
+                    focusedBackgroundColor = AccentOrange.copy(alpha = 0.35f),
+                    unfocusedBorderWidth = 0.dp,
+                    focusedScale = 1.05f,
+                ) {
                     Text(
-                        text = playing.program,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Black,
+                        text = "← Kembali",
+                        fontSize = 12.sp,
                         color = Color.White,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                    Text(
-                        text = "${playing.name}  •  ${playing.time}",
-                        fontSize = 13.sp,
-                        color = TextMuted,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = clock,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.Monospace,
-                        color = Color.White,
-                    )
-                    Text(
-                        text = "${playing.viewers} penonton",
-                        fontSize = 11.sp,
-                        color = TextMuted,
-                        letterSpacing = 1.sp,
-                    )
-                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(text = "● SIARAN LANGSUNG", fontSize = 11.sp, color = AccentOrange, letterSpacing = 2.sp)
+                Text(
+                    text = playing.program,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Text(
+                    text = playing.name,
+                    fontSize = 13.sp,
+                    color = TextMuted,
+                )
             }
             }
         }
