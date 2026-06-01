@@ -208,6 +208,7 @@ export default function BackendSettingsPage() {
             { label: "PostgreSQL", value: "16.x" },
             { label: "Redis", value: "7.2.3" },
             { label: "API URL", value: import.meta.env.VITE_API_URL || "http://localhost:3000" },
+            { label: "Admin URL", value: import.meta.env.VITE_PUBLIC_URL || "http://localhost:5173" },
           ].map((item) => (
             <div
               key={item.label}

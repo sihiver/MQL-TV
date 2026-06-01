@@ -16,6 +16,9 @@ import adminRoutes from "./routes/admin.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+/** 0.0.0.0 = bisa diakses dari HP/TV di jaringan yang sama */
+const HOST = process.env.HOST || "0.0.0.0";
+const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
 
 app.use(helmet());
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(",") }));
@@ -62,8 +65,10 @@ async function start() {
     await new Promise((resolve) => server.close(resolve));
   }
 
-  server = app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  server = app.listen(PORT, HOST, () => {
+    console.log(`🚀 Server listening on ${HOST}:${PORT}`);
+    console.log(`   Lokal:  http://localhost:${PORT}`);
+    console.log(`   Jaringan: ${PUBLIC_URL}`);
   });
 
   server.on("error", (err) => {

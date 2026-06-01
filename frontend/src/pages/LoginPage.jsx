@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { API_BASE } from "../api/client.js";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -80,7 +81,7 @@ export default function LoginPage() {
         <p className="login-hint">
           Demo: <code>admin@nusavision.id</code> / <code>admin123</code>
           <br />
-          (jalankan <code>npm run db:seed-users</code> di backend jika belum ada)
+          API: <code>{API_BASE}</code>
         </p>
       </div>
     </div>
