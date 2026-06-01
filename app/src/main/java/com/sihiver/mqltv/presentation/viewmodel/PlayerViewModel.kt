@@ -29,6 +29,7 @@ data class PlayerUiState(
     val isPlaying: Boolean = true,
     val isMuted: Boolean = false,
     val showEpgOverlay: Boolean = false,
+    val isFullscreen: Boolean = false,
 )
 
 @HiltViewModel
@@ -98,6 +99,19 @@ class PlayerViewModel @Inject constructor(
 
     fun setShowEpg(show: Boolean) {
         _state.update { it.copy(showEpgOverlay = show) }
+    }
+
+    fun setFullscreen(fullscreen: Boolean) {
+        _state.update {
+            it.copy(
+                isFullscreen = fullscreen,
+                showEpgOverlay = if (fullscreen) false else it.showEpgOverlay,
+            )
+        }
+    }
+
+    fun toggleFullscreen() {
+        setFullscreen(!_state.value.isFullscreen)
     }
 
     fun toggleFavorite(channelId: Int) {

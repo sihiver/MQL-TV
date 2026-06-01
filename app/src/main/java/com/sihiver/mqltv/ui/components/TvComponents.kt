@@ -259,6 +259,7 @@ fun TvButton(
 fun CtrlButton(
     label: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     big: Boolean = false,
 ) {
     TvFocusableBox(
@@ -269,7 +270,7 @@ fun CtrlButton(
         focusedBackgroundColor = if (big) AccentOrange else AccentOrange.copy(alpha = 0.3f),
         unfocusedBorderWidth = 0.dp,
         focusedScale = if (big) 1.1f else 1.08f,
-        modifier = Modifier.size(if (big) 52.dp else 40.dp),
+        modifier = modifier.size(if (big) 52.dp else 40.dp),
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(text = label, fontSize = if (big) 20.sp else 16.sp, color = Color.White)

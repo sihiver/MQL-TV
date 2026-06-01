@@ -19,8 +19,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -56,6 +60,7 @@ fun PlayerScreen(
     isPlaying: Boolean,
     isMuted: Boolean,
     showEpg: Boolean,
+    isFullscreen: Boolean = false,
     streamUserAgent: String? = null,
     streamReferer: String? = null,
     streamDrmType: String? = null,
@@ -65,56 +70,76 @@ fun PlayerScreen(
     onIsPlayingChange: (Boolean) -> Unit,
     onIsMutedChange: (Boolean) -> Unit,
     onShowEpgChange: (Boolean) -> Unit,
+    onFullscreenChange: (Boolean) -> Unit,
     onToggleFav: (Int) -> Unit,
 ) {
     val clock = useClock()
+    val isFavorite = favorites.contains(playing.id)
 
-    Row(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            VideoArea(
-                playing = playing,
-                clock = clock,
-                isPlaying = isPlaying,
-                isMuted = isMuted,
-                showEpg = showEpg,
-                streamUserAgent = streamUserAgent,
-                streamReferer = streamReferer,
-                streamDrmType = streamDrmType,
-                streamDrmKey = streamDrmKey,
-                isFavorite = favorites.contains(playing.id),
-                onBack = { onNavigate(AppScreen.HOME) },
-                onIsPlayingChange = onIsPlayingChange,
-                onIsMutedChange = onIsMutedChange,
-                onShowEpgChange = onShowEpgChange,
-                onToggleFav = { onToggleFav(playing.id) },
-            )
-
-            if (showEpg) {
-                EpgPanel(
-                    channelName = playing.name,
-                    epgData = playerEpg,
-                )
-            }
-        }
-
-        ChannelListPanel(
-            channels = channels,
+    val videoArea: @Composable (Modifier) -> Unit = { modifier ->
+        VideoArea(
+            modifier = modifier,
             playing = playing,
-            onChannelSelect = { channel ->
-                onPlayingChange(channel)
-                onIsPlayingChange(true)
+            clock = clock,
+            isPlaying = isPlaying,
+            isMuted = isMuted,
+            isFullscreen = isFullscreen,
+            streamUserAgent = streamUserAgent,
+            streamReferer = streamReferer,
+            streamDrmType = streamDrmType,
+            streamDrmKey = streamDrmKey,
+            isFavorite = isFavorite,
+            onBack = {
+                if (isFullscreen) onFullscreenChange(false)
+                else onNavigate(AppScreen.HOME)
             },
+            onIsPlayingChange = onIsPlayingChange,
+            onIsMutedChange = onIsMutedChange,
+            onShowEpgChange = onShowEpgChange,
+            onToggleFullscreen = { onFullscreenChange(!isFullscreen) },
+            onToggleFav = { onToggleFav(playing.id) },
         )
+    }
+
+    if (isFullscreen) {
+        videoArea(Modifier.fillMaxSize())
+    } else {
+        Row(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                videoArea(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(if (showEpg) 0.55f else 0.7f),
+                )
+
+                if (showEpg) {
+                    EpgPanel(
+                        channelName = playing.name,
+                        epgData = playerEpg,
+                    )
+                }
+            }
+
+            ChannelListPanel(
+                channels = channels,
+                playing = playing,
+                onChannelSelect = { channel ->
+                    onPlayingChange(channel)
+                    onIsPlayingChange(true)
+                },
+            )
+        }
     }
 }
 
 @Composable
-private fun ColumnScope.VideoArea(
+private fun VideoArea(
+    modifier: Modifier,
     playing: Channel,
     clock: String,
     isPlaying: Boolean,
     isMuted: Boolean,
-    showEpg: Boolean,
+    isFullscreen: Boolean,
     streamUserAgent: String? = null,
     streamReferer: String? = null,
     streamDrmType: String? = null,
@@ -124,13 +149,20 @@ private fun ColumnScope.VideoArea(
     onIsPlayingChange: (Boolean) -> Unit,
     onIsMutedChange: (Boolean) -> Unit,
     onShowEpgChange: (Boolean) -> Unit,
+    onToggleFullscreen: () -> Unit,
     onToggleFav: () -> Unit,
 ) {
+    val fullscreenFocus = remember { FocusRequester() }
+
+    LaunchedEffect(isFullscreen) {
+        if (!isFullscreen) {
+            delay(80)
+            fullscreenFocus.requestFocus()
+        }
+    }
+
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(if (showEpg) 0.55f else 0.7f)
-            .background(Color.Black),
+        modifier = modifier.background(Color.Black),
     ) {
         Box(
             modifier = Modifier
@@ -302,11 +334,17 @@ private fun ColumnScope.VideoArea(
                     label = if (isFavorite) "⭐" else "☆",
                     onClick = onToggleFav,
                 )
+                if (!isFullscreen) {
+                    CtrlButton(
+                        label = "📅",
+                        onClick = { onShowEpgChange(true) },
+                    )
+                }
                 CtrlButton(
-                    label = "📅",
-                    onClick = { onShowEpgChange(!showEpg) },
+                    label = if (isFullscreen) "⊡" else "⛶",
+                    onClick = onToggleFullscreen,
+                    modifier = Modifier.focusRequester(fullscreenFocus),
                 )
-                CtrlButton(label = "⛶", onClick = {})
             }
         }
     }

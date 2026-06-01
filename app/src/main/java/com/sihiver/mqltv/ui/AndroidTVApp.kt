@@ -1,5 +1,6 @@
 package com.sihiver.mqltv.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -62,8 +63,26 @@ fun AndroidTVApp(
         }
     }
 
-    LaunchedEffect(navState.playingChannel) {
-        navState.playingChannel?.let { playerViewModel.loadChannel(it) }
+    LaunchedEffect(navState.currentScreen, navState.playingChannel?.id) {
+        if (navState.currentScreen != AppScreen.PLAYER) return@LaunchedEffect
+        val channel = navState.playingChannel ?: return@LaunchedEffect
+        if (playerState.playingChannel?.id != channel.id) {
+            playerViewModel.loadChannel(channel)
+        }
+    }
+
+    LaunchedEffect(navState.currentScreen) {
+        if (navState.currentScreen != AppScreen.PLAYER && playerState.isFullscreen) {
+            playerViewModel.setFullscreen(false)
+        }
+    }
+
+    BackHandler(enabled = navState.currentScreen == AppScreen.PLAYER) {
+        if (playerState.isFullscreen) {
+            playerViewModel.setFullscreen(false)
+        } else {
+            navViewModel.navigate(AppScreen.HOME)
+        }
     }
 
     LaunchedEffect(loginState.isLoggedIn) {
@@ -129,6 +148,7 @@ fun AndroidTVApp(
                     isPlaying = playerState.isPlaying,
                     isMuted = playerState.isMuted,
                     showEpg = playerState.showEpgOverlay,
+                    isFullscreen = playerState.isFullscreen,
                     streamUserAgent = playerState.streamInfo?.userAgent,
                     streamReferer = playerState.streamInfo?.referer,
                     streamDrmType = playerState.streamInfo?.drmType,
@@ -138,6 +158,7 @@ fun AndroidTVApp(
                     onIsPlayingChange = playerViewModel::setPlaying,
                     onIsMutedChange = playerViewModel::setMuted,
                     onShowEpgChange = playerViewModel::setShowEpg,
+                    onFullscreenChange = playerViewModel::setFullscreen,
                     onToggleFav = playerViewModel::toggleFavorite,
                 )
             }

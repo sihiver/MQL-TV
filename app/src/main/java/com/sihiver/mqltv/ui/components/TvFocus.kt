@@ -98,13 +98,15 @@ fun TvFocusableBox(
                 .clip(shape)
                 .background(if (isFocused) focusedBackgroundColor else backgroundColor)
                 .onKeyEvent {
-                    if (it.key == Key.DirectionCenter || it.key == Key.Enter) {
-                        if (it.type == KeyEventType.KeyUp) {
-                            onClick()
+                    when {
+                        it.key == Key.Back -> true
+                        (it.key == Key.DirectionCenter || it.key == Key.Enter) -> {
+                            if (it.type == KeyEventType.KeyUp) {
+                                onClick()
+                            }
+                            true
                         }
-                        true
-                    } else {
-                        false
+                        else -> false
                     }
                 }
                 .focusable(interactionSource = interactionSource)
