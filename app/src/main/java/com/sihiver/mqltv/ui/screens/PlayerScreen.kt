@@ -82,12 +82,9 @@ private const val FULLSCREEN_OVERLAY_HIDE_MS = 5_000L
 fun PlayerScreen(
     playing: Channel,
     channels: List<Channel>,
-    playerEpg: List<EpgItem>,
     favorites: List<Int>,
     isPlaying: Boolean,
     isMuted: Boolean,
-    showEpg: Boolean,
-    isFullscreen: Boolean = false,
     showChannelList: Boolean = false,
     selectedQualityLabel: String = "AUTO",
     selectedQualityHeight: Int? = null,
@@ -102,8 +99,6 @@ fun PlayerScreen(
     onPlayingChange: (Channel) -> Unit,
     onIsPlayingChange: (Boolean) -> Unit,
     onIsMutedChange: (Boolean) -> Unit,
-    onShowEpgChange: (Boolean) -> Unit,
-    onFullscreenChange: (Boolean) -> Unit,
     onOpenChannelList: () -> Unit,
     onCloseChannelList: () -> Unit,
     onOpenQualityPicker: () -> Unit,
@@ -112,7 +107,6 @@ fun PlayerScreen(
     onToggleFav: (Int) -> Unit,
 ) {
     val isFavorite = favorites.contains(playing.id)
-    val overlayControlsFocus = remember { FocusRequester() }
     val channelListButtonFocus = remember { FocusRequester() }
     val channelListFocus = remember { FocusRequester() }
     var channelListPanelVisible by remember { mutableStateOf(showChannelList) }
@@ -134,7 +128,6 @@ fun PlayerScreen(
             playing = playing,
             isPlaying = isPlaying,
             isMuted = isMuted,
-            isFullscreen = isFullscreen,
             channelListOpen = channelListPanelVisible,
             selectedQualityLabel = selectedQualityLabel,
             selectedQualityHeight = selectedQualityHeight,
@@ -146,17 +139,11 @@ fun PlayerScreen(
             streamDrmType = streamDrmType,
             streamDrmKey = streamDrmKey,
             isFavorite = isFavorite,
-            overlayControlsFocus = overlayControlsFocus,
             channelListButtonFocus = channelListButtonFocus,
             channelListFocus = channelListFocus,
-            onBack = {
-                if (isFullscreen) onFullscreenChange(false)
-                else onNavigate(AppScreen.HOME)
-            },
+            onBack = { onNavigate(AppScreen.HOME) },
             onIsPlayingChange = onIsPlayingChange,
             onIsMutedChange = onIsMutedChange,
-            onShowEpgChange = onShowEpgChange,
-            onToggleFullscreen = { onFullscreenChange(!isFullscreen) },
             onRequestChannelListPanel = { channelListPanelVisible = true },
             onOpenQualityPicker = onOpenQualityPicker,
             onCloseQualityPicker = onCloseQualityPicker,
@@ -165,12 +152,11 @@ fun PlayerScreen(
         )
     }
 
-    if (isFullscreen) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            videoArea(Modifier.fillMaxSize())
+    Box(modifier = Modifier.fillMaxSize()) {
+        videoArea(Modifier.fillMaxSize())
 
-            if (channelListPanelVisible) {
-                Box(modifier = Modifier.align(Alignment.CenterStart)) {
+        if (channelListPanelVisible) {
+            Box(modifier = Modifier.align(Alignment.CenterStart)) {
                 ChannelListPanel(
                     channels = channels,
                     playing = playing,
@@ -189,36 +175,7 @@ fun PlayerScreen(
                         onCloseChannelList()
                     },
                 )
-                }
             }
-        }
-    } else {
-        Row(modifier = Modifier.fillMaxSize()) {
-            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                videoArea(
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(if (showEpg) 0.55f else 0.7f),
-                )
-
-                if (showEpg) {
-                    EpgPanel(
-                        channelName = playing.name,
-                        epgData = playerEpg,
-                    )
-                }
-            }
-
-            ChannelListPanel(
-                channels = channels,
-                playing = playing,
-                overlayControlsFocus = overlayControlsFocus,
-                channelListFocus = channelListFocus,
-                onChannelSelect = { channel ->
-                    onPlayingChange(channel)
-                    onIsPlayingChange(true)
-                },
-            )
         }
     }
 }
@@ -229,7 +186,6 @@ private fun VideoArea(
     playing: Channel,
     isPlaying: Boolean,
     isMuted: Boolean,
-    isFullscreen: Boolean,
     channelListOpen: Boolean,
     selectedQualityLabel: String,
     selectedQualityHeight: Int? = null,
@@ -241,14 +197,11 @@ private fun VideoArea(
     streamDrmType: String? = null,
     streamDrmKey: String? = null,
     isFavorite: Boolean,
-    overlayControlsFocus: FocusRequester,
     channelListButtonFocus: FocusRequester,
     channelListFocus: FocusRequester,
     onBack: () -> Unit,
     onIsPlayingChange: (Boolean) -> Unit,
     onIsMutedChange: (Boolean) -> Unit,
-    onShowEpgChange: (Boolean) -> Unit,
-    onToggleFullscreen: () -> Unit,
     onRequestChannelListPanel: () -> Unit,
     onOpenQualityPicker: () -> Unit,
     onCloseQualityPicker: () -> Unit,
@@ -269,40 +222,29 @@ private fun VideoArea(
     }
 
     fun bumpOverlayTimer() {
-        if (!isFullscreen) return
         showOverlay = true
         overlayHideGeneration++
     }
 
-    LaunchedEffect(isFullscreen) {
-        if (isFullscreen) {
-            showOverlay = true
-            overlayHideGeneration++
-        } else {
-            showOverlay = true
-            delay(80)
-            overlayControlsFocus.requestFocus()
-        }
+    LaunchedEffect(playing.id) {
+        showOverlay = true
+        overlayHideGeneration++
     }
 
-    LaunchedEffect(isFullscreen, showOverlay, overlayHideGeneration) {
-        if (!isFullscreen || !showOverlay) return@LaunchedEffect
+    LaunchedEffect(showOverlay, overlayHideGeneration) {
+        if (!showOverlay) return@LaunchedEffect
         delay(FULLSCREEN_OVERLAY_HIDE_MS)
         showOverlay = false
         videoSurfaceFocus.requestFocus()
     }
 
-    LaunchedEffect(isFullscreen, showOverlay) {
+    LaunchedEffect(showOverlay) {
         if (!showOverlay) return@LaunchedEffect
         delay(80)
-        if (isFullscreen) {
-            channelListButtonFocus.requestFocus()
-        } else {
-            overlayControlsFocus.requestFocus()
-        }
+        channelListButtonFocus.requestFocus()
     }
 
-    val overlayVisible = !isFullscreen || (showOverlay && !channelListOpen)
+    val overlayVisible = showOverlay && !channelListOpen
 
     Box(
         modifier = modifier.background(Color.Black),
@@ -314,7 +256,6 @@ private fun VideoArea(
                 .focusRequester(videoSurfaceFocus)
                 .focusable()
                 .onPreviewKeyEvent { event ->
-                    if (!isFullscreen) return@onPreviewKeyEvent false
                     when {
                         !showOverlay &&
                             event.type == KeyEventType.KeyDown &&
@@ -414,17 +355,7 @@ private fun VideoArea(
                             colors = listOf(Color(0xCC000000), Color.Transparent),
                         ),
                     )
-                    .padding(horizontal = 28.dp, vertical = 20.dp)
-                    .onPreviewKeyEvent { event ->
-                        if (isFullscreen ||
-                            event.type != KeyEventType.KeyDown ||
-                            event.key != Key.DirectionRight
-                        ) {
-                            return@onPreviewKeyEvent false
-                        }
-                        channelListFocus.requestFocus()
-                        true
-                    },
+                    .padding(horizontal = 28.dp, vertical = 20.dp),
             ) {
             Column {
                 TvFocusableBox(
@@ -500,24 +431,22 @@ private fun VideoArea(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                if (isFullscreen) {
-                    CtrlButton(
-                        label = "📻",
-                        onClick = {
-                            showOverlay = false
-                            onRequestChannelListPanel()
-                        },
-                        modifier = Modifier
-                            .focusRequester(channelListButtonFocus)
-                            .then(
-                                if (channelListOpen) {
-                                    Modifier.focusProperties { left = channelListFocus }
-                                } else {
-                                    Modifier
-                                },
-                            ),
-                    )
-                }
+                CtrlButton(
+                    label = "📻",
+                    onClick = {
+                        showOverlay = false
+                        onRequestChannelListPanel()
+                    },
+                    modifier = Modifier
+                        .focusRequester(channelListButtonFocus)
+                        .then(
+                            if (channelListOpen) {
+                                Modifier.focusProperties { left = channelListFocus }
+                            } else {
+                                Modifier
+                            },
+                        ),
+                )
                 CtrlButton(
                     label = if (isPlaying) "⏸" else "▶",
                     onClick = {
@@ -525,11 +454,6 @@ private fun VideoArea(
                         onIsPlayingChange(!isPlaying)
                     },
                     big = true,
-                    modifier = if (isFullscreen) {
-                        Modifier
-                    } else {
-                        Modifier.focusRequester(overlayControlsFocus)
-                    },
                 )
                 CtrlButton(
                     label = if (isMuted) "🔇" else "🔊",
@@ -546,15 +470,6 @@ private fun VideoArea(
                         onToggleFav()
                     },
                 )
-                if (!isFullscreen) {
-                    CtrlButton(
-                        label = "📅",
-                        onClick = {
-                            bumpOverlayTimer()
-                            onShowEpgChange(true)
-                        },
-                    )
-                }
                 QualityButton(
                     label = qualityButtonLabel(selectedQualityLabel),
                     isHd = selectedQualityLabel.contains("1080", ignoreCase = true) ||
@@ -563,18 +478,6 @@ private fun VideoArea(
                     onClick = {
                         bumpOverlayTimer()
                         onOpenQualityPicker()
-                    },
-                )
-                CtrlButton(
-                    label = if (isFullscreen) "⊡" else "⛶",
-                    onClick = {
-                        bumpOverlayTimer()
-                        onToggleFullscreen()
-                    },
-                    modifier = if (isFullscreen) {
-                        Modifier
-                    } else {
-                        Modifier.focusProperties { right = channelListFocus }
                     },
                 )
             }

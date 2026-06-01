@@ -34,7 +34,6 @@ data class PlayerUiState(
     val isPlaying: Boolean = true,
     val isMuted: Boolean = false,
     val showEpgOverlay: Boolean = false,
-    val isFullscreen: Boolean = false,
     val showChannelList: Boolean = false,
     val showQualityPicker: Boolean = false,
     val qualitiesLoading: Boolean = false,
@@ -76,17 +75,6 @@ class PlayerViewModel @Inject constructor(
                 ChannelMapper.toUiList(getChannels("Semua"))
             }
             _state.update { it.copy(channels = channels) }
-        }
-    }
-
-    fun prepareFullscreenPlayback() {
-        _state.update {
-            it.copy(
-                isFullscreen = true,
-                showChannelList = false,
-                showEpgOverlay = false,
-                showQualityPicker = false,
-            )
         }
     }
 
@@ -202,21 +190,6 @@ class PlayerViewModel @Inject constructor(
 
     fun setShowEpg(show: Boolean) {
         _state.update { it.copy(showEpgOverlay = show, showQualityPicker = false) }
-    }
-
-    fun setFullscreen(fullscreen: Boolean) {
-        _state.update {
-            it.copy(
-                isFullscreen = fullscreen,
-                showEpgOverlay = if (fullscreen) false else it.showEpgOverlay,
-                showQualityPicker = if (fullscreen) false else it.showQualityPicker,
-                showChannelList = false,
-            )
-        }
-    }
-
-    fun toggleFullscreen() {
-        setFullscreen(!_state.value.isFullscreen)
     }
 
     fun setShowChannelList(show: Boolean) {

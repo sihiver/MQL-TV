@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,8 +34,6 @@ import com.sihiver.mqltv.ui.screens.PlayerScreen
 import com.sihiver.mqltv.ui.screens.SearchScreen
 import com.sihiver.mqltv.ui.screens.SettingsScreen
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.yield
 
 @Composable
 fun AndroidTVApp(
@@ -59,14 +56,9 @@ fun AndroidTVApp(
     val searchState by searchViewModel.state.collectAsState()
     val favoritesState by favoritesViewModel.state.collectAsState()
     val settingsState by settingsViewModel.state.collectAsState()
-    val appScope = rememberCoroutineScope()
 
     fun openPlayer(channel: Channel) {
-        appScope.launch {
-            playerViewModel.prepareFullscreenPlayback()
-            yield()
-            navViewModel.openPlayer(channel)
-        }
+        navViewModel.openPlayer(channel)
     }
 
     LaunchedEffect(navState.toastMessage) {
@@ -84,18 +76,10 @@ fun AndroidTVApp(
         }
     }
 
-    LaunchedEffect(navState.currentScreen) {
-        if (navState.currentScreen != AppScreen.PLAYER && playerState.isFullscreen) {
-            playerViewModel.setFullscreen(false)
-        }
-    }
-
     BackHandler(enabled = navState.currentScreen == AppScreen.PLAYER) {
         when {
             playerState.showQualityPicker -> playerViewModel.closeQualityPicker()
-            playerState.showChannelList && playerState.isFullscreen ->
-                playerViewModel.setShowChannelList(false)
-            playerState.isFullscreen -> playerViewModel.setFullscreen(false)
+            playerState.showChannelList -> playerViewModel.setShowChannelList(false)
             else -> navViewModel.navigate(AppScreen.HOME)
         }
     }
@@ -158,12 +142,9 @@ fun AndroidTVApp(
                 PlayerScreen(
                     playing = playing,
                     channels = playerState.channels,
-                    playerEpg = playerState.playerEpg,
                     favorites = playerState.favorites,
                     isPlaying = playerState.isPlaying,
                     isMuted = playerState.isMuted,
-                    showEpg = playerState.showEpgOverlay,
-                    isFullscreen = playerState.isFullscreen,
                     showChannelList = playerState.showChannelList,
                     selectedQualityLabel = playerState.selectedQualityLabel,
                     selectedQualityHeight = playerState.selectedQualityHeight,
@@ -178,8 +159,6 @@ fun AndroidTVApp(
                     onPlayingChange = { playerViewModel.switchChannel(it) },
                     onIsPlayingChange = playerViewModel::setPlaying,
                     onIsMutedChange = playerViewModel::setMuted,
-                    onShowEpgChange = playerViewModel::setShowEpg,
-                    onFullscreenChange = playerViewModel::setFullscreen,
                     onOpenChannelList = { playerViewModel.setShowChannelList(true) },
                     onCloseChannelList = { playerViewModel.setShowChannelList(false) },
                     onOpenQualityPicker = playerViewModel::openQualityPicker,
