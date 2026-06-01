@@ -80,7 +80,7 @@ fun AndroidTVApp(
         when {
             playerState.showQualityPicker -> playerViewModel.closeQualityPicker()
             playerState.showChannelList -> playerViewModel.setShowChannelList(false)
-            else -> navViewModel.navigate(AppScreen.HOME)
+            else -> navViewModel.closePlayer()
         }
     }
 
@@ -145,7 +145,7 @@ fun AndroidTVApp(
                     streamReferer = playerState.streamInfo?.referer,
                     streamDrmType = playerState.streamInfo?.drmType,
                     streamDrmKey = playerState.streamInfo?.drmKey,
-                    onNavigate = navViewModel::navigate,
+                    onBack = navViewModel::closePlayer,
                     onPlayingChange = { playerViewModel.switchChannel(it) },
                     onIsPlayingChange = playerViewModel::setPlaying,
                     onIsMutedChange = playerViewModel::setMuted,

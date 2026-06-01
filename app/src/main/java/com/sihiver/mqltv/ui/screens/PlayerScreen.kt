@@ -61,7 +61,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
-import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.EpgItem
 import com.sihiver.mqltv.presentation.player.HlsVideoPlayer
@@ -95,7 +94,7 @@ fun PlayerScreen(
     streamReferer: String? = null,
     streamDrmType: String? = null,
     streamDrmKey: String? = null,
-    onNavigate: (AppScreen) -> Unit,
+    onBack: () -> Unit,
     onPlayingChange: (Channel) -> Unit,
     onIsPlayingChange: (Boolean) -> Unit,
     onIsMutedChange: (Boolean) -> Unit,
@@ -141,7 +140,7 @@ fun PlayerScreen(
             isFavorite = isFavorite,
             channelListButtonFocus = channelListButtonFocus,
             channelListFocus = channelListFocus,
-            onBack = { onNavigate(AppScreen.HOME) },
+            onBack = onBack,
             onIsPlayingChange = onIsPlayingChange,
             onIsMutedChange = onIsMutedChange,
             onRequestChannelListPanel = { channelListPanelVisible = true },

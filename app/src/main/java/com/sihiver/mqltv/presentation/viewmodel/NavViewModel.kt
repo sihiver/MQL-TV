@@ -22,8 +22,20 @@ class NavViewModel @Inject constructor() : ViewModel() {
     }
 
     fun openPlayer(channel: Channel) {
+        _state.update { current ->
+            val from = current.currentScreen.takeUnless { it == AppScreen.PLAYER }
+                ?: current.returnScreen
+            current.copy(
+                returnScreen = from,
+                currentScreen = AppScreen.PLAYER,
+                playingChannel = channel,
+            )
+        }
+    }
+
+    fun closePlayer() {
         _state.update {
-            it.copy(currentScreen = AppScreen.PLAYER, playingChannel = channel)
+            it.copy(currentScreen = it.returnScreen)
         }
     }
 
