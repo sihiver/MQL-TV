@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -136,17 +137,23 @@ private fun ColumnScope.VideoArea(
                 .fillMaxSize()
                 .background(Color.Black),
         ) {
+            val playerKey = remember(playing.id, playing.streamUrl, streamDrmType, streamDrmKey) {
+                "${playing.id}|${playing.streamUrl}|$streamDrmType|$streamDrmKey"
+            }
+
             if (playing.streamUrl.isNotBlank()) {
-                HlsVideoPlayer(
-                    streamUrl = playing.streamUrl,
-                    isPlaying = isPlaying,
-                    isMuted = isMuted,
-                    userAgent = streamUserAgent,
-                    referer = streamReferer,
-                    drmType = streamDrmType,
-                    drmKey = streamDrmKey,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                key(playerKey) {
+                    HlsVideoPlayer(
+                        streamUrl = playing.streamUrl,
+                        isPlaying = isPlaying,
+                        isMuted = isMuted,
+                        userAgent = streamUserAgent,
+                        referer = streamReferer,
+                        drmType = streamDrmType,
+                        drmKey = streamDrmKey,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             } else {
                 Box(
                     modifier = Modifier

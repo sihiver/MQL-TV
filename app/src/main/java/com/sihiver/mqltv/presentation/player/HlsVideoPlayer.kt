@@ -38,7 +38,9 @@ fun HlsVideoPlayer(
         IptvStreamUrl.resolveHeaders(streamUrl, userAgent, referer)
     }
 
-    val exoPlayer = remember(playbackUrl, requestHeaders, drmType, drmKey) {
+    val playerConfigKey = listOf(playbackUrl, drmType, drmKey, requestHeaders)
+
+    val exoPlayer = remember(playerConfigKey) {
         val ua = requestHeaders["User-Agent"] ?: "NusaVision/1.0"
         val extraHeaders = requestHeaders.filterKeys { it != "User-Agent" }
 
@@ -63,11 +65,23 @@ fun HlsVideoPlayer(
             }
     }
 
-    DisposableEffect(Unit) {
-        onDispose { exoPlayer.release() }
+    DisposableEffect(exoPlayer) {
+        onDispose {
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+            exoPlayer.release()
+        }
     }
 
     LaunchedEffect(playbackUrl, drmType, drmKey) {
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+
+        if (playbackUrl.isBlank()) {
+            exoPlayer.playWhenReady = false
+            return@LaunchedEffect
+        }
+
         val drmUuid = StreamDrm.drmUuid(drmType, drmKey)
         val mediaItemBuilder = MediaItem.Builder().setUri(playbackUrl)
         if (drmUuid != null) {
@@ -81,8 +95,8 @@ fun HlsVideoPlayer(
         exoPlayer.prepare()
     }
 
-    LaunchedEffect(isPlaying) {
-        exoPlayer.playWhenReady = isPlaying
+    LaunchedEffect(isPlaying, playbackUrl) {
+        exoPlayer.playWhenReady = isPlaying && playbackUrl.isNotBlank()
     }
 
     LaunchedEffect(isMuted) {

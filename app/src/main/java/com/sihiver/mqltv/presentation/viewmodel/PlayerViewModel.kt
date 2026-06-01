@@ -15,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -40,6 +41,7 @@ class PlayerViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
+    private var loadChannelJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -54,10 +56,24 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun loadChannel(channel: Channel) {
-        viewModelScope.launch {
+        loadChannelJob?.cancel()
+        _state.update {
+            it.copy(
+                playingChannel = channel.copy(streamUrl = ""),
+                streamInfo = null,
+                playerEpg = emptyList(),
+                isPlaying = false,
+                showEpgOverlay = false,
+            )
+        }
+
+        loadChannelJob = viewModelScope.launch {
             val domain = ChannelMapper.toDomain(channel)
             val epg = EpgMapper.toUiList(getEpg.forChannel(channel.id))
             val stream = playStream(domain)
+
+            if (_state.value.playingChannel?.id != channel.id) return@launch
+
             val playingWithStream = channel.copy(streamUrl = stream.url)
             _state.update {
                 it.copy(
@@ -65,7 +81,6 @@ class PlayerViewModel @Inject constructor(
                     playerEpg = epg,
                     streamInfo = stream,
                     isPlaying = true,
-                    showEpgOverlay = false,
                 )
             }
         }
