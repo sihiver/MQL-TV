@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
-import com.sihiver.mqltv.data.categories
 import com.sihiver.mqltv.ui.components.CategoryPills
 import com.sihiver.mqltv.ui.components.ChannelCard
 import com.sihiver.mqltv.ui.components.Sidebar
@@ -24,6 +23,7 @@ import com.sihiver.mqltv.ui.components.useClock
 
 @Composable
 fun ChannelsScreen(
+    categories: List<String>,
     activeCat: String,
     favorites: List<Int>,
     filtered: List<Channel>,

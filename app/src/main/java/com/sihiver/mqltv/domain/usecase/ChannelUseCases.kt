@@ -7,11 +7,20 @@ import javax.inject.Inject
 class GetChannelsUseCase @Inject constructor(
     private val repository: ChannelRepository,
 ) {
+    fun observeChannels() = repository.observeChannels()
+
     suspend operator fun invoke(category: String = "Semua"): List<Channel> =
         if (category == "Semua") repository.getAllChannels()
         else repository.getChannelsByCategory(category)
 
-    fun categories(): List<String> = repository.getCategories()
+    suspend fun getLocal(category: String): List<Channel> =
+        repository.getLocalChannelsByCategory(category)
+
+    fun getCategories(): List<String> = repository.getCategories()
+
+    suspend fun fetchCategories(): List<String> = repository.fetchCategories()
+
+    suspend fun refreshFromApi(): Boolean = repository.refreshFromApi()
 }
 
 class GetTrendingChannelsUseCase @Inject constructor(

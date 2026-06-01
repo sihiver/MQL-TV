@@ -105,6 +105,49 @@ router.get("/search", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/channels/categories — daftar kategori dari channel paket user
+router.get("/categories", async (req, res, next) => {
+  try {
+    const access = await resolvePackageAccess(req.user.id);
+    if (!access.hasPackage) {
+      return res.json({ data: [] });
+    }
+
+    const cacheKey = `channels:categories:${access.planSlug}`;
+    const cached = await redis.get(cacheKey);
+    if (cached) return res.json(JSON.parse(cached));
+
+    const params = [];
+    const conditions = [
+      "c.active = true",
+      "c.category IS NOT NULL",
+      "TRIM(c.category) <> ''",
+    ];
+
+    if (!access.includesAll) {
+      params.push(access.packageId);
+      conditions.push(
+        `c.id IN (SELECT channel_id FROM package_channels WHERE package_id = $${params.length})`,
+      );
+    }
+
+    const result = await db.query(
+      `SELECT TRIM(c.category) AS category, COUNT(*)::int AS count
+       FROM channels c
+       WHERE ${conditions.join(" AND ")}
+       GROUP BY TRIM(c.category)
+       ORDER BY count DESC, category ASC`,
+      params,
+    );
+
+    const payload = { data: result.rows.map((r) => r.category) };
+    await redis.setex(cacheKey, 300, JSON.stringify(payload));
+    res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/channels/trending?limit=10&days=30 — paling banyak ditonton
 router.get("/trending", async (req, res, next) => {
   try {

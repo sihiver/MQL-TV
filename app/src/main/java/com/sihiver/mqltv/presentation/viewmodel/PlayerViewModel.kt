@@ -71,10 +71,12 @@ class PlayerViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            val channels = withContext(Dispatchers.Default) {
-                ChannelMapper.toUiList(getChannels("Semua"))
+            getChannels.observeChannels().collect { list ->
+                val channels = withContext(Dispatchers.Default) {
+                    ChannelMapper.toUiList(list)
+                }
+                _state.update { it.copy(channels = channels) }
             }
-            _state.update { it.copy(channels = channels) }
         }
     }
 
@@ -96,27 +98,30 @@ class PlayerViewModel @Inject constructor(
         }
 
         loadChannelJob = viewModelScope.launch {
-            val domain = withContext(Dispatchers.Default) {
-                ChannelMapper.toDomain(channel)
-            }
-            val epg = withContext(Dispatchers.IO) {
-                EpgMapper.toUiList(getEpg.forChannel(channel.id))
-            }
-            val stream = withContext(Dispatchers.IO) {
-                playStream(domain)
-            }
+            runCatching {
+                val domain = withContext(Dispatchers.Default) {
+                    ChannelMapper.toDomain(channel)
+                }
+                val epg = withContext(Dispatchers.IO) {
+                    runCatching { EpgMapper.toUiList(getEpg.forChannel(channel.id)) }
+                        .getOrDefault(emptyList())
+                }
+                val stream = withContext(Dispatchers.IO) {
+                    playStream(domain)
+                }
 
-            if (_state.value.playingChannel?.id != channel.id) return@launch
+                if (_state.value.playingChannel?.id != channel.id) return@runCatching
 
-            val playingWithStream = channel.copy(streamUrl = stream.url)
-            _state.update {
-                it.copy(
-                    playingChannel = playingWithStream,
-                    playerEpg = epg,
-                    streamInfo = stream,
-                    isPlaying = true,
-                    masterStreamUrl = stream.url,
-                )
+                val playingWithStream = channel.copy(streamUrl = stream.url)
+                _state.update {
+                    it.copy(
+                        playingChannel = playingWithStream,
+                        playerEpg = epg,
+                        streamInfo = stream,
+                        isPlaying = true,
+                        masterStreamUrl = stream.url,
+                    )
+                }
             }
         }
     }

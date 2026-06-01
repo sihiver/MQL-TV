@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.mapper.ChannelMapper
+import com.sihiver.mqltv.domain.repository.ChannelRepository
 import com.sihiver.mqltv.domain.repository.FavoriteRepository
 import com.sihiver.mqltv.domain.usecase.GetTrendingChannelsUseCase
 import com.sihiver.mqltv.domain.usecase.ManageFavoriteUseCase
@@ -26,6 +27,7 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val getTrendingChannels: GetTrendingChannelsUseCase,
+    private val channelRepository: ChannelRepository,
     private val favoriteRepository: FavoriteRepository,
     private val manageFavorite: ManageFavoriteUseCase,
 ) : ViewModel() {
@@ -39,24 +41,37 @@ class HomeViewModel @Inject constructor(
                 _state.update { it.copy(favorites = ids) }
             }
         }
+        viewModelScope.launch {
+            channelRepository.observeChannels().collect { channels ->
+                if (channels.isEmpty()) return@collect
+                runCatching {
+                    val favoriteChannels = ChannelMapper.toUiList(favoriteRepository.getFavoriteChannels())
+                    _state.update { it.copy(favoriteChannels = favoriteChannels) }
+                }
+            }
+        }
         refresh()
     }
 
     fun refresh() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val featuredDeferred = async { getTrendingChannels(days = 30, limit = 10) }
-            val favoritesDeferred = async { favoriteRepository.getFavoriteChannels() }
-            val featured = ChannelMapper.toUiList(featuredDeferred.await())
-                .distinctBy { it.id }
-                .distinctBy { it.name.trim().lowercase() }
-            val favoriteChannels = ChannelMapper.toUiList(favoritesDeferred.await())
-            _state.update {
-                it.copy(
-                    featuredChannels = featured,
-                    favoriteChannels = favoriteChannels,
-                    isLoading = false,
-                )
+            runCatching {
+                val featuredDeferred = async { getTrendingChannels(days = 30, limit = 10) }
+                val favoritesDeferred = async { favoriteRepository.getFavoriteChannels() }
+                val featured = ChannelMapper.toUiList(featuredDeferred.await())
+                    .distinctBy { it.id }
+                    .distinctBy { it.name.trim().lowercase() }
+                val favoriteChannels = ChannelMapper.toUiList(favoritesDeferred.await())
+                _state.update {
+                    it.copy(
+                        featuredChannels = featured,
+                        favoriteChannels = favoriteChannels,
+                        isLoading = false,
+                    )
+                }
+            }.onFailure {
+                _state.update { it.copy(isLoading = false) }
             }
         }
     }

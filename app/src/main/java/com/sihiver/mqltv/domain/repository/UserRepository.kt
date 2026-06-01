@@ -20,6 +20,6 @@ interface UserRepository {
     suspend fun restoreSession(): Boolean
     suspend fun login(email: String, password: String): AuthResult
     suspend fun logout()
-    suspend fun getProfile(): UserProfile
+    suspend fun getProfile(): UserProfile?
     suspend fun checkSubscription(): SubscriptionStatus
 }

@@ -123,6 +123,7 @@ fun AndroidTVApp(
                     return@AppWrap
                 }
                 ChannelsScreen(
+                    categories = channelState.categories,
                     activeCat = channelState.activeCategory,
                     favorites = channelState.favorites,
                     filtered = channelState.filteredChannels,

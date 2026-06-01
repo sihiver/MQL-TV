@@ -50,19 +50,23 @@ class StreamRepositoryImpl @Inject constructor(
     }
 
     override suspend fun fetchQualities(channelId: Int): StreamQualitiesResult {
-        val res = api.getStreamQualities(channelId)
-        val options = res.data.map { dto ->
-            StreamQualityOption(
-                id = dto.id,
-                label = dto.label,
-                height = dto.height,
-                url = dto.url?.let { IptvStreamUrl.resolvePlaybackUrl(it) },
+        return runCatching {
+            val res = api.getStreamQualities(channelId)
+            val options = res.data.map { dto ->
+                StreamQualityOption(
+                    id = dto.id,
+                    label = dto.label,
+                    height = dto.height,
+                    url = dto.url?.let { IptvStreamUrl.resolvePlaybackUrl(it) },
+                )
+            }
+            StreamQualitiesResult(
+                options = options,
+                masterUrl = IptvStreamUrl.resolvePlaybackUrl(res.masterUrl),
             )
+        }.getOrElse {
+            StreamQualitiesResult(options = emptyList(), masterUrl = "")
         }
-        return StreamQualitiesResult(
-            options = options,
-            masterUrl = IptvStreamUrl.resolvePlaybackUrl(res.masterUrl),
-        )
     }
 
     companion object {

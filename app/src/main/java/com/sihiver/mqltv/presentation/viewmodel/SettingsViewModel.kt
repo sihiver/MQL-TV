@@ -10,7 +10,10 @@ import com.sihiver.mqltv.domain.usecase.LoginUseCase
 import com.sihiver.mqltv.domain.repository.UserRepository
 import com.sihiver.mqltv.domain.usecase.ObserveSettingsUseCase
 import com.sihiver.mqltv.domain.usecase.UpdateSettingsUseCase
+import android.content.Context
+import com.sihiver.mqltv.worker.ContentSyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +29,7 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val observeSettings: ObserveSettingsUseCase,
     private val updateSettingsUseCase: UpdateSettingsUseCase,
     private val loginUseCase: LoginUseCase,
@@ -40,6 +44,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             observeSettings().collect { settings ->
                 _state.update { it.copy(settings = settings) }
+                ContentSyncWorker.schedule(
+                    appContext,
+                    enabled = settings.autoRefresh,
+                    interval = settings.refreshInterval,
+                )
             }
         }
         viewModelScope.launch {

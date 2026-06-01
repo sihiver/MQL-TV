@@ -39,17 +39,27 @@ class ChannelViewModel @Inject constructor(
                 _state.update { it.copy(favorites = ids) }
             }
         }
+        viewModelScope.launch {
+            getChannels.observeChannels().collect {
+                reloadFromLocal(_state.value.activeCategory)
+            }
+        }
         loadChannels("Semua")
     }
 
     fun setCategory(category: String) {
         viewModelScope.launch {
-            val filtered = ChannelMapper.toUiList(getChannels(category))
+            _state.update { it.copy(isLoading = true, activeCategory = category) }
+            val filtered = ChannelMapper.toUiList(
+                runCatching { getChannels(category) }
+                    .getOrElse { getChannels.getLocal(category) },
+            )
             _state.update {
                 it.copy(
                     activeCategory = category,
                     filteredChannels = filtered,
-                    selectedChannel = filtered.firstOrNull() ?: it.selectedChannel,
+                    selectedChannel = filtered.firstOrNull(),
+                    isLoading = false,
                 )
             }
         }
@@ -70,18 +80,30 @@ class ChannelViewModel @Inject constructor(
     private fun loadChannels(category: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val all = ChannelMapper.toUiList(getChannels("Semua"))
-            val filtered = ChannelMapper.toUiList(getChannels(category))
-            val default = all.find { it.id == 4 } ?: all.firstOrNull()
-            _state.update {
-                it.copy(
-                    channels = all,
-                    filteredChannels = filtered,
-                    categories = getChannels.categories(),
-                    selectedChannel = default,
-                    isLoading = false,
-                )
-            }
+            runCatching { getChannels.refreshFromApi() }
+            reloadFromLocal(category, refreshCategories = true)
+        }
+    }
+
+    private suspend fun reloadFromLocal(category: String, refreshCategories: Boolean = false) {
+        val categories = if (refreshCategories) {
+            getChannels.fetchCategories()
+        } else {
+            getChannels.getCategories().takeIf { it.size > 1 }
+                ?: getChannels.fetchCategories()
+        }
+        val activeCategory = category.takeIf { it in categories } ?: "Semua"
+        val all = ChannelMapper.toUiList(getChannels.getLocal("Semua"))
+        val filtered = ChannelMapper.toUiList(getChannels.getLocal(activeCategory))
+        _state.update {
+            it.copy(
+                channels = all,
+                filteredChannels = filtered,
+                categories = categories,
+                activeCategory = activeCategory,
+                selectedChannel = filtered.firstOrNull() ?: it.selectedChannel,
+                isLoading = false,
+            )
         }
     }
 }

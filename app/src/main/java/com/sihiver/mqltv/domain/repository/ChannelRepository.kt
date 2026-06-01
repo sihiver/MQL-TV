@@ -8,9 +8,11 @@ interface ChannelRepository {
     suspend fun getAllChannels(): List<Channel>
     suspend fun getChannelById(id: Int): Channel?
     suspend fun getChannelsByCategory(category: String): List<Channel>
+    suspend fun getLocalChannelsByCategory(category: String): List<Channel>
     suspend fun searchChannels(query: String): List<Channel>
     suspend fun saveChannels(channels: List<Channel>)
     fun getCategories(): List<String>
+    suspend fun fetchCategories(): List<String>
     suspend fun refreshFromLocalSeed()
     suspend fun refreshFromApi(): Boolean
 

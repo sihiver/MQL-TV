@@ -5,7 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.sihiver.mqltv.data.local.DatabaseSeeder
 import com.sihiver.mqltv.di.ApplicationScope
-import com.sihiver.mqltv.worker.EpgSyncWorker
+import com.sihiver.mqltv.worker.ContentSyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -25,7 +25,7 @@ class MqltvApplication : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         appScope.launch { databaseSeeder.seedIfNeeded() }
-        EpgSyncWorker.schedule(this)
+        ContentSyncWorker.schedule(this, enabled = true, interval = "6h")
     }
 
     override val workManagerConfiguration: Configuration

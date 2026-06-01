@@ -48,11 +48,13 @@ class EpgRepositoryImpl @Inject constructor(
 
     override suspend fun syncChannelFromApi(channelId: Int) {
         if (tokenStore.token == null) return
-        val response = api.getEpg(channelId)
-        val programs = response.data.mapNotNull { it.toDomain(channelId) }
-        epgDao.deleteForChannel(channelId)
-        if (programs.isNotEmpty()) {
-            epgDao.insertAll(programs.map { it.toEntity() })
+        runCatching {
+            val response = api.getEpg(channelId)
+            val programs = response.data.mapNotNull { it.toDomain(channelId) }
+            epgDao.deleteForChannel(channelId)
+            if (programs.isNotEmpty()) {
+                epgDao.insertAll(programs.map { it.toEntity() })
+            }
         }
     }
 

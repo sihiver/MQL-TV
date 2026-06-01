@@ -42,14 +42,15 @@ class UserRepositoryImpl @Inject constructor(
         userPreferences.setToken(null)
     }
 
-    override suspend fun getProfile(): UserProfile {
-        val me = api.me()
-        val sub = runCatching { api.subscription().toStatus() }.getOrNull()
-        return me.toProfile(
-            expiresLabel = sub?.expiresAt ?: "—",
-            daysRemaining = sub?.daysRemaining ?: 0,
-        )
-    }
+    override suspend fun getProfile(): UserProfile? =
+        runCatching {
+            val me = api.me()
+            val sub = runCatching { api.subscription().toStatus() }.getOrNull()
+            me.toProfile(
+                expiresLabel = sub?.expiresAt ?: "—",
+                daysRemaining = sub?.daysRemaining ?: 0,
+            )
+        }.getOrNull()
 
     override suspend fun checkSubscription(): SubscriptionStatus =
         runCatching { api.subscription().toStatus() }

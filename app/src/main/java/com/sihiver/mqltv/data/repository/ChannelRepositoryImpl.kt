@@ -32,9 +32,36 @@ class ChannelRepositoryImpl @Inject constructor(
     override suspend fun getChannelById(id: Int): Channel? =
         channelDao.getById(id)?.toDomain()
 
-    override suspend fun getChannelsByCategory(category: String): List<Channel> =
-        if (category == "Semua") getAllChannels()
-        else channelDao.getByCategory(category).map { it.toDomain() }
+    override suspend fun getLocalChannelsByCategory(category: String): List<Channel> {
+        if (category == "Semua") return getAllChannels()
+        return channelDao.getByCategory(category).map { it.toDomain() }
+    }
+
+    override suspend fun getChannelsByCategory(category: String): List<Channel> {
+        if (category == "Semua") {
+            return getAllChannels()
+        }
+        if (tokenStore.token != null) {
+            runCatching {
+                return fetchChannelsFromApi(category)
+            }
+        }
+        return channelDao.getByCategory(category).map { it.toDomain() }
+    }
+
+    private suspend fun fetchChannelsFromApi(category: String?): List<Channel> {
+        val all = mutableListOf<Channel>()
+        var page = 1
+        var total = Int.MAX_VALUE
+        while (all.size < total) {
+            val res = api.getChannels(category = category, page = page, limit = 200)
+            all.addAll(res.data.map { it.toDomain() })
+            total = res.total
+            if (res.data.isEmpty()) break
+            page++
+        }
+        return all
+    }
 
     override suspend fun searchChannels(query: String): List<Channel> {
         if (query.isBlank()) return emptyList()
@@ -54,8 +81,34 @@ class ChannelRepositoryImpl @Inject constructor(
 
     override fun getCategories(): List<String> {
         if (cachedCategories.isNotEmpty()) return listOf("Semua") + cachedCategories
-        return LocalChannelDataSource.categories
+        return listOf("Semua")
     }
+
+    override suspend fun fetchCategories(): List<String> {
+        if (tokenStore.token != null) {
+            runCatching {
+                val fromApi = api.getChannelCategories().data
+                    .map { it.trim() }
+                    .filter { isValidCategoryName(it) }
+                if (fromApi.isNotEmpty()) {
+                    cachedCategories = fromApi
+                    return listOf("Semua") + fromApi
+                }
+            }
+        }
+        val fromDb = getAllChannels()
+            .map { it.category.trim() }
+            .filter { isValidCategoryName(it) }
+            .distinct()
+            .sorted()
+        if (fromDb.isNotEmpty()) {
+            cachedCategories = fromDb
+        }
+        return listOf("Semua") + if (fromDb.isNotEmpty()) fromDb else cachedCategories
+    }
+
+    private fun isValidCategoryName(name: String): Boolean =
+        name.isNotBlank() && name.any { it.isLetterOrDigit() }
 
     override suspend fun refreshFromLocalSeed() {
         if (channelDao.count() == 0) {
@@ -65,19 +118,12 @@ class ChannelRepositoryImpl @Inject constructor(
 
     override suspend fun refreshFromApi(): Boolean {
         if (tokenStore.token == null) return false
-        val all = mutableListOf<Channel>()
-        var page = 1
-        var total = Int.MAX_VALUE
-        while (all.size < total) {
-            val res = api.getChannels(page = page, limit = 200)
-            all.addAll(res.data.map { it.toDomain() })
-            total = res.total
-            if (res.data.isEmpty()) break
-            page++
-        }
-        if (all.isEmpty()) return false
-        saveChannels(all)
-        return true
+        return runCatching {
+            val all = fetchChannelsFromApi(category = null)
+            if (all.isEmpty()) return@runCatching false
+            saveChannels(all)
+            true
+        }.getOrDefault(false)
     }
 
     override suspend fun getTrendingChannels(days: Int, limit: Int): List<Channel> {

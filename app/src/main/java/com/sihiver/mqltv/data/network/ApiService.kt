@@ -1,5 +1,6 @@
 package com.sihiver.mqltv.data.network
 
+import com.sihiver.mqltv.data.network.dto.ChannelCategoriesResponse
 import com.sihiver.mqltv.data.network.dto.ChannelsResponse
 import com.sihiver.mqltv.data.network.dto.EpgListResponse
 import com.sihiver.mqltv.data.network.dto.FavoritesResponse
@@ -40,6 +41,9 @@ interface ApiService {
 
     @GET("api/channels/search")
     suspend fun searchChannels(@Query("q") query: String): SearchChannelsResponse
+
+    @GET("api/channels/categories")
+    suspend fun getChannelCategories(): ChannelCategoriesResponse
 
     @GET("api/channels/trending")
     suspend fun getTrendingChannels(

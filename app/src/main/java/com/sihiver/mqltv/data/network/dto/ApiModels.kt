@@ -55,6 +55,10 @@ data class SearchChannelsResponse(
     val total: Int,
 )
 
+data class ChannelCategoriesResponse(
+    val data: List<String>,
+)
+
 data class StreamResponse(
     @SerializedName("streamUrl") val streamUrl: String,
     val token: String? = null,
