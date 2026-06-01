@@ -48,8 +48,8 @@ private data class NavItem(
 private val navItems = listOf(
     NavItem("⊞", "Beranda", AppScreen.HOME),
     NavItem("📺", "Channel", AppScreen.CHANNELS),
-    NavItem("⭐", "Favorit", null),
-    NavItem("⚙️", "Pengaturan", null),
+    NavItem("⭐", "Favorit", AppScreen.FAVORITES),
+    NavItem("⚙️", "Pengaturan", AppScreen.SETTINGS),
 )
 
 private val clockLocale = Locale.forLanguageTag("id-ID")

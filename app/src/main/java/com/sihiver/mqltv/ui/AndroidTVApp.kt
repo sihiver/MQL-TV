@@ -8,12 +8,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.sihiver.mqltv.data.AppScreen
+import com.sihiver.mqltv.data.AppSettings
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.sampleChannels
 import com.sihiver.mqltv.ui.components.AppWrap
 import com.sihiver.mqltv.ui.screens.ChannelsScreen
+import com.sihiver.mqltv.ui.screens.FavoritesScreen
 import com.sihiver.mqltv.ui.screens.HomeScreen
 import com.sihiver.mqltv.ui.screens.PlayerScreen
+import com.sihiver.mqltv.ui.screens.SettingsScreen
 
 @Composable
 fun AndroidTVApp() {
@@ -27,6 +30,7 @@ fun AndroidTVApp() {
     var isPlaying by rememberSaveable { mutableStateOf(true) }
     var isMuted by rememberSaveable { mutableStateOf(false) }
     var showEpg by rememberSaveable { mutableStateOf(false) }
+    var settings by remember { mutableStateOf(AppSettings()) }
 
     val selected = remember(selectedId) { sampleChannels.first { it.id == selectedId } }
     val playing = remember(playingId) { sampleChannels.first { it.id == playingId } }
@@ -51,6 +55,16 @@ fun AndroidTVApp() {
         } else {
             favorites + id
         }
+    }
+
+    fun addFavorite(id: Int) {
+        if (!favorites.contains(id)) {
+            favorites = favorites + id
+        }
+    }
+
+    fun removeFavorite(id: Int) {
+        favorites = favorites.filter { it != id }
     }
 
     AppWrap {
@@ -88,6 +102,20 @@ fun AndroidTVApp() {
                 onIsMutedChange = { isMuted = it },
                 onShowEpgChange = { showEpg = it },
                 onToggleFav = ::toggleFav,
+            )
+
+            AppScreen.FAVORITES -> FavoritesScreen(
+                favorites = favorites,
+                onNavigate = ::navigate,
+                onOpenPlayer = ::openPlayer,
+                onAddFavorite = ::addFavorite,
+                onRemoveFavorite = ::removeFavorite,
+            )
+
+            AppScreen.SETTINGS -> SettingsScreen(
+                settings = settings,
+                onSettingsChange = { settings = it },
+                onNavigate = ::navigate,
             )
         }
     }
