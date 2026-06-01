@@ -44,7 +44,14 @@ class ChannelViewModel @Inject constructor(
                 reloadFromLocal(_state.value.activeCategory)
             }
         }
-        loadChannels("Semua")
+        viewModelScope.launch {
+            reloadFromLocal("Semua", refreshCategories = false)
+        }
+    }
+
+    /** Sinkronkan channel dari server — dipanggil saat layar Channel dibuka. */
+    fun refreshOnOpen() {
+        loadChannels(_state.value.activeCategory)
     }
 
     fun setCategory(category: String) {
@@ -65,9 +72,7 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
-    fun refresh() {
-        loadChannels(_state.value.activeCategory)
-    }
+    fun refresh() = refreshOnOpen()
 
     fun selectChannel(channel: Channel) {
         _state.update { it.copy(selectedChannel = channel) }
@@ -79,7 +84,8 @@ class ChannelViewModel @Inject constructor(
 
     private fun loadChannels(category: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            val showLoading = _state.value.filteredChannels.isEmpty()
+            if (showLoading) _state.update { it.copy(isLoading = true) }
             runCatching { getChannels.refreshFromApi() }
             reloadFromLocal(category, refreshCategories = true)
         }

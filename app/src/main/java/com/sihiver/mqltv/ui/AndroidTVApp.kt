@@ -84,10 +84,12 @@ fun AndroidTVApp(
         }
     }
 
-    LaunchedEffect(loginState.isLoggedIn) {
-        if (loginState.isLoggedIn) {
-            homeViewModel.refresh()
-            channelViewModel.refresh()
+    LaunchedEffect(loginState.isLoggedIn, navState.currentScreen) {
+        if (!loginState.isLoggedIn) return@LaunchedEffect
+        when (navState.currentScreen) {
+            AppScreen.HOME -> homeViewModel.refreshOnOpen()
+            AppScreen.CHANNELS -> channelViewModel.refreshOnOpen()
+            else -> Unit
         }
     }
 
