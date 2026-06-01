@@ -4,6 +4,7 @@ import { redis }  from "../config/redis.js";
 import { authenticate, isAdmin } from "../middleware/auth.js";
 import { generateStreamToken }   from "../services/streamToken.js";
 import { resolveStreamHeaders }  from "../utils/iptvStreamUrl.js";
+import { fetchStreamQualities }  from "../services/streamQualities.js";
 import {
   resolvePackageAccess,
   getPackageBySlug,
@@ -103,42 +104,75 @@ router.get("/search", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+async function loadChannelForStream(req, res) {
+  const sub = await db.query(
+    `SELECT s.plan, s.expires_at FROM subscriptions s
+     WHERE s.user_id = $1 AND s.status = 'active'
+     AND s.expires_at > NOW()`,
+    [req.user.id],
+  );
+  if (!sub.rows.length) {
+    res.status(403).json({ error: "Subscription tidak aktif" });
+    return null;
+  }
+
+  const planSlug = sub.rows[0].plan?.toLowerCase();
+  const pkg = await getPackageBySlug(planSlug);
+
+  const channel = await db.query(
+    `SELECT id, stream_url, drm_type, drm_key, user_agent, referer
+     FROM channels WHERE id = $1 AND active = true`,
+    [req.params.id],
+  );
+  if (!channel.rows.length) {
+    res.status(404).json({ error: "Channel tidak ditemukan" });
+    return null;
+  }
+
+  if (pkg) {
+    const allowed = await channelAllowedForPackage(
+      pkg.id,
+      channel.rows[0].id,
+      pkg.includes_all_channels,
+    );
+    if (!allowed) {
+      res.status(403).json({ error: "Channel tidak termasuk paket langganan Anda" });
+      return null;
+    }
+  }
+
+  return channel.rows[0];
+}
+
+// GET /api/channels/:id/stream/qualities — daftar resolusi dari manifest CDN
+router.get("/:id/stream/qualities", async (req, res, next) => {
+  try {
+    const ch = await loadChannelForStream(req, res);
+    if (!ch) return;
+
+    const headers = resolveStreamHeaders(ch.stream_url, ch.user_agent, ch.referer);
+    const result = await fetchStreamQualities(
+      ch.stream_url,
+      headers.userAgent,
+      headers.referer,
+      req.user.id,
+    );
+
+    res.json({
+      data: result.data,
+      masterUrl: result.masterUrl,
+      total: result.data.length,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/channels/:id/stream — generate stream URL + token
 router.get("/:id/stream", async (req, res, next) => {
   try {
-    // Cek subscription
-    const sub = await db.query(
-      `SELECT s.plan, s.expires_at FROM subscriptions s
-       WHERE s.user_id = $1 AND s.status = 'active'
-       AND s.expires_at > NOW()`,
-      [req.user.id]
-    );
-    if (!sub.rows.length)
-      return res.status(403).json({ error: "Subscription tidak aktif" });
-
-    const planSlug = sub.rows[0].plan?.toLowerCase();
-    const pkg = await getPackageBySlug(planSlug);
-
-    const channel = await db.query(
-      `SELECT id, stream_url, drm_type, drm_key, user_agent, referer
-       FROM channels WHERE id = $1 AND active = true`,
-      [req.params.id],
-    );
-    if (!channel.rows.length)
-      return res.status(404).json({ error: "Channel tidak ditemukan" });
-
-    if (pkg) {
-      const allowed = await channelAllowedForPackage(
-        pkg.id,
-        channel.rows[0].id,
-        pkg.includes_all_channels,
-      );
-      if (!allowed) {
-        return res.status(403).json({ error: "Channel tidak termasuk paket langganan Anda" });
-      }
-    }
-
-    const ch = channel.rows[0];
+    const ch = await loadChannelForStream(req, res);
+    if (!ch) return;
     const headers = resolveStreamHeaders(ch.stream_url, ch.user_agent, ch.referer);
     const { streamUrl, token, expiresAt } = generateStreamToken(headers.url, req.user.id);
 

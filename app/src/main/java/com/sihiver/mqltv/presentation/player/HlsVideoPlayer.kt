@@ -17,6 +17,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.PlayerView
 import com.sihiver.mqltv.data.stream.IptvStreamUrl
 
@@ -30,6 +31,7 @@ fun HlsVideoPlayer(
     referer: String? = null,
     drmType: String? = null,
     drmKey: String? = null,
+    maxVideoHeight: Int? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -38,9 +40,18 @@ fun HlsVideoPlayer(
         IptvStreamUrl.resolveHeaders(streamUrl, userAgent, referer)
     }
 
-    val playerConfigKey = listOf(playbackUrl, drmType, drmKey, requestHeaders)
+    val playerConfigKey = listOf(playbackUrl, drmType, drmKey, requestHeaders, maxVideoHeight)
 
     val exoPlayer = remember(playerConfigKey) {
+        val trackSelector = DefaultTrackSelector(context).apply {
+            maxVideoHeight?.let { h ->
+                setParameters(
+                    buildUponParameters()
+                        .setMaxVideoSize(Int.MAX_VALUE, h)
+                        .build(),
+                )
+            }
+        }
         val ua = requestHeaders["User-Agent"] ?: "NusaVision/1.0"
         val extraHeaders = requestHeaders.filterKeys { it != "User-Agent" }
 
@@ -58,6 +69,7 @@ fun HlsVideoPlayer(
         }
 
         ExoPlayer.Builder(context)
+            .setTrackSelector(trackSelector)
             .setMediaSourceFactory(mediaSourceFactory)
             .build()
             .apply {
@@ -73,7 +85,7 @@ fun HlsVideoPlayer(
         }
     }
 
-    LaunchedEffect(playbackUrl, drmType, drmKey) {
+    LaunchedEffect(playbackUrl, drmType, drmKey, maxVideoHeight) {
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
 

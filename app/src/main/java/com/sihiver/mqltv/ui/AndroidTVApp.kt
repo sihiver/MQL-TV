@@ -78,10 +78,10 @@ fun AndroidTVApp(
     }
 
     BackHandler(enabled = navState.currentScreen == AppScreen.PLAYER) {
-        if (playerState.isFullscreen) {
-            playerViewModel.setFullscreen(false)
-        } else {
-            navViewModel.navigate(AppScreen.HOME)
+        when {
+            playerState.showQualityPicker -> playerViewModel.closeQualityPicker()
+            playerState.isFullscreen -> playerViewModel.setFullscreen(false)
+            else -> navViewModel.navigate(AppScreen.HOME)
         }
     }
 
@@ -149,6 +149,11 @@ fun AndroidTVApp(
                     isMuted = playerState.isMuted,
                     showEpg = playerState.showEpgOverlay,
                     isFullscreen = playerState.isFullscreen,
+                    selectedQualityLabel = playerState.selectedQualityLabel,
+                    selectedQualityHeight = playerState.selectedQualityHeight,
+                    showQualityPicker = playerState.showQualityPicker,
+                    qualitiesLoading = playerState.qualitiesLoading,
+                    qualities = playerState.qualities,
                     streamUserAgent = playerState.streamInfo?.userAgent,
                     streamReferer = playerState.streamInfo?.referer,
                     streamDrmType = playerState.streamInfo?.drmType,
@@ -159,6 +164,14 @@ fun AndroidTVApp(
                     onIsMutedChange = playerViewModel::setMuted,
                     onShowEpgChange = playerViewModel::setShowEpg,
                     onFullscreenChange = playerViewModel::setFullscreen,
+                    onOpenQualityPicker = playerViewModel::openQualityPicker,
+                    onCloseQualityPicker = playerViewModel::closeQualityPicker,
+                    onSelectQuality = { option ->
+                        playerViewModel.selectQuality(option)
+                        navViewModel.showToast(
+                            if (option.isAuto) "Kualitas otomatis" else option.label,
+                        )
+                    },
                     onToggleFav = playerViewModel::toggleFavorite,
                 )
             }

@@ -56,6 +56,8 @@ import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.EpgItem
 import com.sihiver.mqltv.presentation.player.HlsVideoPlayer
+import com.sihiver.mqltv.domain.model.StreamQualityOption
+import com.sihiver.mqltv.presentation.viewmodel.qualityButtonLabel
 import com.sihiver.mqltv.ui.components.ChannelLogoContent
 import com.sihiver.mqltv.ui.components.CtrlButton
 import com.sihiver.mqltv.ui.components.LiveBadge
@@ -78,6 +80,11 @@ fun PlayerScreen(
     isMuted: Boolean,
     showEpg: Boolean,
     isFullscreen: Boolean = false,
+    selectedQualityLabel: String = "AUTO",
+    selectedQualityHeight: Int? = null,
+    showQualityPicker: Boolean = false,
+    qualitiesLoading: Boolean = false,
+    qualities: List<StreamQualityOption> = emptyList(),
     streamUserAgent: String? = null,
     streamReferer: String? = null,
     streamDrmType: String? = null,
@@ -88,6 +95,9 @@ fun PlayerScreen(
     onIsMutedChange: (Boolean) -> Unit,
     onShowEpgChange: (Boolean) -> Unit,
     onFullscreenChange: (Boolean) -> Unit,
+    onOpenQualityPicker: () -> Unit,
+    onCloseQualityPicker: () -> Unit,
+    onSelectQuality: (StreamQualityOption) -> Unit,
     onToggleFav: (Int) -> Unit,
 ) {
     val clock = useClock()
@@ -103,6 +113,11 @@ fun PlayerScreen(
             isPlaying = isPlaying,
             isMuted = isMuted,
             isFullscreen = isFullscreen,
+            selectedQualityLabel = selectedQualityLabel,
+            selectedQualityHeight = selectedQualityHeight,
+            showQualityPicker = showQualityPicker,
+            qualitiesLoading = qualitiesLoading,
+            qualities = qualities,
             streamUserAgent = streamUserAgent,
             streamReferer = streamReferer,
             streamDrmType = streamDrmType,
@@ -118,6 +133,9 @@ fun PlayerScreen(
             onIsMutedChange = onIsMutedChange,
             onShowEpgChange = onShowEpgChange,
             onToggleFullscreen = { onFullscreenChange(!isFullscreen) },
+            onOpenQualityPicker = onOpenQualityPicker,
+            onCloseQualityPicker = onCloseQualityPicker,
+            onSelectQuality = onSelectQuality,
             onToggleFav = { onToggleFav(playing.id) },
         )
     }
@@ -163,6 +181,11 @@ private fun VideoArea(
     isPlaying: Boolean,
     isMuted: Boolean,
     isFullscreen: Boolean,
+    selectedQualityLabel: String,
+    selectedQualityHeight: Int? = null,
+    showQualityPicker: Boolean,
+    qualitiesLoading: Boolean,
+    qualities: List<StreamQualityOption>,
     streamUserAgent: String? = null,
     streamReferer: String? = null,
     streamDrmType: String? = null,
@@ -175,6 +198,9 @@ private fun VideoArea(
     onIsMutedChange: (Boolean) -> Unit,
     onShowEpgChange: (Boolean) -> Unit,
     onToggleFullscreen: () -> Unit,
+    onOpenQualityPicker: () -> Unit,
+    onCloseQualityPicker: () -> Unit,
+    onSelectQuality: (StreamQualityOption) -> Unit,
     onToggleFav: () -> Unit,
 ) {
     val videoSurfaceFocus = remember { FocusRequester() }
@@ -242,8 +268,14 @@ private fun VideoArea(
                     }
                 },
         ) {
-            val playerKey = remember(playing.id, playing.streamUrl, streamDrmType, streamDrmKey) {
-                "${playing.id}|${playing.streamUrl}|$streamDrmType|$streamDrmKey"
+            val playerKey = remember(
+                playing.id,
+                playing.streamUrl,
+                streamDrmType,
+                streamDrmKey,
+                selectedQualityHeight,
+            ) {
+                "${playing.id}|${playing.streamUrl}|$streamDrmType|$streamDrmKey|$selectedQualityHeight"
             }
 
             if (playing.streamUrl.isNotBlank()) {
@@ -256,6 +288,7 @@ private fun VideoArea(
                         referer = streamReferer,
                         drmType = streamDrmType,
                         drmKey = streamDrmKey,
+                        maxVideoHeight = selectedQualityHeight,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -450,6 +483,16 @@ private fun VideoArea(
                         },
                     )
                 }
+                QualityButton(
+                    label = qualityButtonLabel(selectedQualityLabel),
+                    isHd = selectedQualityLabel.contains("1080", ignoreCase = true) ||
+                        selectedQualityLabel.contains("720", ignoreCase = true) ||
+                        selectedQualityLabel.equals("Otomatis", ignoreCase = true),
+                    onClick = {
+                        bumpOverlayTimer()
+                        onOpenQualityPicker()
+                    },
+                )
                 CtrlButton(
                     label = if (isFullscreen) "⊡" else "⛶",
                     onClick = {
@@ -464,6 +507,152 @@ private fun VideoArea(
                 )
             }
         }
+        }
+
+        if (showQualityPicker) {
+            QualityPickerOverlay(
+                qualities = qualities,
+                loading = qualitiesLoading,
+                selectedLabel = selectedQualityLabel,
+                onClose = onCloseQualityPicker,
+                onSelect = onSelectQuality,
+            )
+        }
+    }
+}
+
+@Composable
+private fun QualityPickerOverlay(
+    qualities: List<StreamQualityOption>,
+    loading: Boolean,
+    selectedLabel: String,
+    onClose: () -> Unit,
+    onSelect: (StreamQualityOption) -> Unit,
+) {
+  val firstItemFocus = remember { FocusRequester() }
+
+  LaunchedEffect(qualities, loading) {
+    if (!loading && qualities.isNotEmpty()) {
+      delay(80)
+      firstItemFocus.requestFocus()
+    }
+  }
+
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(Color(0xE6000000)),
+  ) {
+    Column(
+      modifier = Modifier
+        .align(Alignment.Center)
+        .width(320.dp)
+        .clip(RoundedCornerShape(16.dp))
+        .background(Color(0xF2121218))
+        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+        .padding(20.dp),
+    ) {
+      Text(
+        text = "PILIH RESOLUSI",
+        fontSize = 11.sp,
+        color = AccentOrange,
+        letterSpacing = 2.sp,
+        modifier = Modifier.padding(bottom = 14.dp),
+      )
+
+      if (loading) {
+        Text(text = "Memuat dari server…", fontSize = 13.sp, color = TextMuted)
+      } else if (qualities.isEmpty()) {
+        Text(text = "Resolusi tidak tersedia", fontSize = 13.sp, color = TextMuted)
+      } else {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          qualities.forEachIndexed { index, option ->
+            val selected = option.label.equals(selectedLabel, ignoreCase = true) ||
+              (option.isAuto && selectedLabel.equals("AUTO", ignoreCase = true))
+            TvFocusableBox(
+              onClick = { onSelect(option) },
+              modifier = Modifier
+                .fillMaxWidth()
+                .then(if (index == 0) Modifier.focusRequester(firstItemFocus) else Modifier),
+              accentColor = AccentOrange,
+              shape = RoundedCornerShape(10.dp),
+              backgroundColor = if (selected) AccentOrange.copy(alpha = 0.35f) else Color(0x14FFFFFF),
+              focusedBackgroundColor = AccentOrange.copy(alpha = 0.5f),
+              unfocusedBorderWidth = if (selected) 0.dp else 1.dp,
+            ) { _ ->
+              Row(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                Text(
+                  text = option.label,
+                  fontSize = 14.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color.White,
+                )
+                if (selected) {
+                  Text(text = "✓", fontSize = 14.sp, color = AccentOrange)
+                }
+              }
+            }
+          }
+        }
+      }
+
+      Spacer(modifier = Modifier.height(14.dp))
+
+      TvFocusableBox(
+        onClick = onClose,
+        modifier = Modifier.fillMaxWidth(),
+        accentColor = AccentOrange,
+        shape = RoundedCornerShape(10.dp),
+        backgroundColor = Color(0x1AFFFFFF),
+        focusedBackgroundColor = AccentOrange.copy(alpha = 0.35f),
+        unfocusedBorderWidth = 0.dp,
+      ) {
+        Text(
+          text = "Tutup",
+          fontSize = 12.sp,
+          color = Color.White,
+          modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun QualityButton(
+    label: String,
+    isHd: Boolean,
+    onClick: () -> Unit,
+) {
+    TvFocusableBox(
+        onClick = onClick,
+        accentColor = AccentOrange,
+        shape = RoundedCornerShape(10.dp),
+        backgroundColor = if (isHd) AccentOrange.copy(alpha = 0.35f) else Color(0x1AFFFFFF),
+        focusedBackgroundColor = AccentOrange.copy(alpha = 0.55f),
+        unfocusedBorderWidth = if (isHd) 0.dp else 1.dp,
+        focusedScale = 1.08f,
+        modifier = Modifier
+            .height(40.dp)
+            .padding(horizontal = 2.dp),
+    ) { _ ->
+        Box(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                letterSpacing = 1.sp,
+            )
         }
     }
 }

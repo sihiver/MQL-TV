@@ -4,8 +4,10 @@ import com.sihiver.mqltv.data.network.ApiService
 import com.sihiver.mqltv.data.network.AuthTokenStore
 import com.sihiver.mqltv.data.stream.IptvStreamUrl
 import com.sihiver.mqltv.domain.model.Channel
+import com.sihiver.mqltv.domain.model.StreamQualityOption
 import com.sihiver.mqltv.domain.repository.StreamFormat
 import com.sihiver.mqltv.domain.repository.StreamInfo
+import com.sihiver.mqltv.domain.repository.StreamQualitiesResult
 import com.sihiver.mqltv.domain.repository.StreamRepository
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -45,6 +47,22 @@ class StreamRepositoryImpl @Inject constructor(
         url.contains(".mpd", ignoreCase = true) -> StreamFormat.DASH
         url.contains(".ts", ignoreCase = true) -> StreamFormat.MPEG_TS
         else -> StreamFormat.UNKNOWN
+    }
+
+    override suspend fun fetchQualities(channelId: Int): StreamQualitiesResult {
+        val res = api.getStreamQualities(channelId)
+        val options = res.data.map { dto ->
+            StreamQualityOption(
+                id = dto.id,
+                label = dto.label,
+                height = dto.height,
+                url = dto.url?.let { IptvStreamUrl.resolvePlaybackUrl(it) },
+            )
+        }
+        return StreamQualitiesResult(
+            options = options,
+            masterUrl = IptvStreamUrl.resolvePlaybackUrl(res.masterUrl),
+        )
     }
 
     companion object {

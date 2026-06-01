@@ -65,6 +65,19 @@ data class StreamResponse(
     val referer: String? = null,
 )
 
+data class StreamQualitiesResponse(
+    val data: List<StreamQualityDto>,
+    @SerializedName("masterUrl") val masterUrl: String,
+    val total: Int? = null,
+)
+
+data class StreamQualityDto(
+    val id: String,
+    val label: String,
+    val height: Int? = null,
+    val url: String? = null,
+)
+
 data class EpgListResponse(
     val channel: EpgChannelRef? = null,
     val data: List<EpgProgramDto>,

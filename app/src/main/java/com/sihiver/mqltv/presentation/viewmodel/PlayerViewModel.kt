@@ -6,16 +6,19 @@ import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.EpgItem
 import com.sihiver.mqltv.data.mapper.ChannelMapper
 import com.sihiver.mqltv.data.mapper.EpgMapper
+import com.sihiver.mqltv.data.stream.IptvStreamUrl
+import com.sihiver.mqltv.domain.model.StreamQualityOption
 import com.sihiver.mqltv.domain.repository.StreamInfo
+import com.sihiver.mqltv.domain.repository.StreamRepository
 import com.sihiver.mqltv.domain.usecase.GetChannelsUseCase
 import com.sihiver.mqltv.domain.usecase.GetEPGUseCase
 import com.sihiver.mqltv.domain.usecase.ManageFavoriteUseCase
 import com.sihiver.mqltv.domain.usecase.PlayStreamUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,13 +33,28 @@ data class PlayerUiState(
     val isMuted: Boolean = false,
     val showEpgOverlay: Boolean = false,
     val isFullscreen: Boolean = false,
+    val showQualityPicker: Boolean = false,
+    val qualitiesLoading: Boolean = false,
+    val qualities: List<StreamQualityOption> = emptyList(),
+    val selectedQualityLabel: String = "AUTO",
+    val selectedQualityHeight: Int? = null,
+    val masterStreamUrl: String? = null,
 )
+
+fun qualityButtonLabel(label: String): String = when {
+    label.equals("Otomatis", ignoreCase = true) -> "AUTO"
+    label.contains("1080", ignoreCase = true) -> "FHD"
+    label.contains("720", ignoreCase = true) -> "HD"
+    label.contains("480", ignoreCase = true) || label.contains("360", ignoreCase = true) -> "SD"
+    else -> label.take(6).uppercase()
+}
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val getChannels: GetChannelsUseCase,
     private val getEpg: GetEPGUseCase,
     private val playStream: PlayStreamUseCase,
+    private val streamRepository: StreamRepository,
     private val manageFavorite: ManageFavoriteUseCase,
 ) : ViewModel() {
 
@@ -65,6 +83,11 @@ class PlayerViewModel @Inject constructor(
                 playerEpg = emptyList(),
                 isPlaying = false,
                 showEpgOverlay = false,
+                showQualityPicker = false,
+                qualities = emptyList(),
+                selectedQualityLabel = "AUTO",
+                selectedQualityHeight = null,
+                masterStreamUrl = null,
             )
         }
 
@@ -82,12 +105,70 @@ class PlayerViewModel @Inject constructor(
                     playerEpg = epg,
                     streamInfo = stream,
                     isPlaying = true,
+                    masterStreamUrl = stream.url,
                 )
             }
         }
     }
 
     fun switchChannel(channel: Channel) = loadChannel(channel)
+
+    fun openQualityPicker() {
+        val channelId = _state.value.playingChannel?.id ?: return
+        _state.update {
+            it.copy(
+                showQualityPicker = true,
+                qualitiesLoading = true,
+                showEpgOverlay = false,
+            )
+        }
+        viewModelScope.launch {
+            runCatching { streamRepository.fetchQualities(channelId) }
+                .onSuccess { result ->
+                    _state.update {
+                        it.copy(
+                            qualities = result.options,
+                            qualitiesLoading = false,
+                            masterStreamUrl = result.masterUrl,
+                        )
+                    }
+                }
+                .onFailure {
+                    _state.update {
+                        it.copy(
+                            qualitiesLoading = false,
+                            showQualityPicker = false,
+                        )
+                    }
+                }
+        }
+    }
+
+    fun closeQualityPicker() {
+        _state.update { it.copy(showQualityPicker = false) }
+    }
+
+    fun selectQuality(option: StreamQualityOption) {
+        val playing = _state.value.playingChannel ?: return
+        val master = _state.value.masterStreamUrl ?: playing.streamUrl
+
+        val playbackUrl = when {
+            option.isAuto -> master
+            !option.url.isNullOrBlank() && option.url != master -> option.url
+            else -> master
+        }
+
+        _state.update {
+            it.copy(
+                showQualityPicker = false,
+                selectedQualityLabel = option.label,
+                selectedQualityHeight = if (option.isAuto) null else option.height,
+                playingChannel = playing.copy(
+                    streamUrl = IptvStreamUrl.resolvePlaybackUrl(playbackUrl),
+                ),
+            )
+        }
+    }
 
     fun setPlaying(playing: Boolean) {
         _state.update { it.copy(isPlaying = playing) }
@@ -98,7 +179,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun setShowEpg(show: Boolean) {
-        _state.update { it.copy(showEpgOverlay = show) }
+        _state.update { it.copy(showEpgOverlay = show, showQualityPicker = false) }
     }
 
     fun setFullscreen(fullscreen: Boolean) {
@@ -106,6 +187,7 @@ class PlayerViewModel @Inject constructor(
             it.copy(
                 isFullscreen = fullscreen,
                 showEpgOverlay = if (fullscreen) false else it.showEpgOverlay,
+                showQualityPicker = if (fullscreen) false else it.showQualityPicker,
             )
         }
     }

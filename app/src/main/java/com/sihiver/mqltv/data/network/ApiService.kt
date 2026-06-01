@@ -7,6 +7,7 @@ import com.sihiver.mqltv.data.network.dto.LoginRequest
 import com.sihiver.mqltv.data.network.dto.LoginResponse
 import com.sihiver.mqltv.data.network.dto.MeResponse
 import com.sihiver.mqltv.data.network.dto.SearchChannelsResponse
+import com.sihiver.mqltv.data.network.dto.StreamQualitiesResponse
 import com.sihiver.mqltv.data.network.dto.StreamResponse
 import com.sihiver.mqltv.data.network.dto.SubscriptionResponse
 import retrofit2.http.Body
@@ -42,6 +43,9 @@ interface ApiService {
 
     @GET("api/channels/{id}/stream")
     suspend fun getStream(@Path("id") channelId: Int): StreamResponse
+
+    @GET("api/channels/{id}/stream/qualities")
+    suspend fun getStreamQualities(@Path("id") channelId: Int): StreamQualitiesResponse
 
     @GET("api/epg/channel/{channelId}")
     suspend fun getEpg(@Path("channelId") channelId: Int): EpgListResponse
