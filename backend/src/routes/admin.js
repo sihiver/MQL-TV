@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { adminPanelAuth } from "../middleware/adminPanel.js";
 import usersRouter from "./admin/users.js";
+import subscriptionsRouter from "./admin/subscriptions.js";
+import packagesRouter from "./admin/packages.js";
 
 const router = Router();
 
@@ -11,5 +13,7 @@ router.get("/stats", (_req, res) => {
 });
 
 router.use("/users", usersRouter);
+router.use("/subscriptions", subscriptionsRouter);
+router.use("/packages", packagesRouter);
 
 export default router;

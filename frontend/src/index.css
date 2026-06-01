@@ -90,6 +90,12 @@ select {
   gap: 16px;
 }
 
+.admin-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
 .admin-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -151,14 +157,170 @@ select option {
   color: #fff;
 }
 
+/* ─── Login ─── */
+.login-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 30% 20%, rgba(255, 107, 53, 0.12), transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(99, 179, 237, 0.08), transparent 40%), #030308;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 40px 36px;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+}
+
+.login-brand {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.login-brand-nusa {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 3px;
+}
+
+.login-brand-vision {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #ff6b35;
+}
+
+.login-brand-sub {
+  font-size: 10px;
+  color: #555;
+  letter-spacing: 4px;
+  margin-top: 6px;
+  font-family: monospace;
+}
+
+.login-desc {
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.login-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 10px;
+  color: #888;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+.login-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  padding: 12px 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.login-input:focus {
+  border-color: rgba(255, 107, 53, 0.5);
+}
+
+.login-pass-wrap {
+  position: relative;
+}
+
+.login-pass-wrap .login-input {
+  padding-right: 44px;
+}
+
+.login-pass-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+.login-submit {
+  margin-top: 8px;
+  width: 100%;
+  background: #ff6b35;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 14px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+
+.login-submit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.login-submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.login-error {
+  padding: 10px 14px;
+  background: rgba(252, 129, 129, 0.12);
+  border: 1px solid rgba(252, 129, 129, 0.3);
+  border-radius: 10px;
+  font-size: 12px;
+  color: #fc8181;
+}
+
+.login-hint {
+  margin-top: 24px;
+  font-size: 11px;
+  color: #555;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.login-hint code {
+  color: #ff6b35;
+  font-size: 10px;
+}
+
 @media (max-width: 1200px) {
-  .admin-grid-4 {
+  .admin-grid-4,
+  .admin-grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 768px) {
   .admin-grid-4,
+  .admin-grid-3,
   .admin-grid-2 {
     grid-template-columns: 1fr;
   }

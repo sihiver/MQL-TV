@@ -39,7 +39,11 @@ router.post("/register", async (req, res, next) => {
 // POST /api/auth/login
 router.post("/login", async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email: rawEmail, password } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email dan password wajib diisi" });
+    }
 
     const result = await db.query(
       "SELECT * FROM users WHERE email = $1", [email]
@@ -65,8 +69,56 @@ router.post("/login", async (req, res, next) => {
     // Simpan refresh token di Redis
     await redis.setex(`refresh:${user.id}`, 60 * 60 * 24 * 30, refreshToken);
 
-    res.json({ token, refreshToken, expiresIn: 86400 });
+    res.json({
+      token,
+      refreshToken,
+      expiresIn: 86400,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+        role: user.role,
+      },
+    });
   } catch (err) { next(err); }
+});
+
+// POST /api/auth/admin/login — hanya role admin (panel)
+router.post("/admin/login", async (req, res, next) => {
+  try {
+    const { email: rawEmail, password } = req.body;
+    const email = rawEmail?.trim().toLowerCase();
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email dan password wajib diisi" });
+    }
+
+    const result = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+    const user = result.rows[0];
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      return res.status(401).json({ error: "Email atau password salah" });
+    }
+    if (user.banned) {
+      return res.status(403).json({ error: "Akun ini telah diblokir" });
+    }
+    if (user.role !== "admin") {
+      return res.status(403).json({ error: "Akses ditolak — hanya admin" });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, plan: user.plan, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" },
+    );
+
+    res.json({
+      token,
+      expiresIn: 86400,
+      user: { id: user.id, name: user.name, email: user.email, plan: user.plan, role: user.role },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // POST /api/auth/logout
