@@ -4,6 +4,7 @@ import usersRouter from "./admin/users.js";
 import subscriptionsRouter from "./admin/subscriptions.js";
 import packagesRouter from "./admin/packages.js";
 import channelsRouter from "./admin/channels.js";
+import packageChannelsRouter from "./admin/packageChannels.js";
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.get("/stats", (_req, res) => {
 router.use("/users", usersRouter);
 router.use("/subscriptions", subscriptionsRouter);
 router.use("/packages", packagesRouter);
+router.use("/packages/:packageId/channels", packageChannelsRouter);
 router.use("/channels", channelsRouter);
 
 export default router;

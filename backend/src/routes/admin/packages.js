@@ -17,16 +17,20 @@ function mapPackage(row) {
     active: row.active,
     sortOrder: row.sort_order ?? 0,
     subscriptionCount: row.subscription_count ?? 0,
+    channelCount: row.channel_count ?? 0,
+    includesAllChannels: row.includes_all_channels ?? false,
     createdAt: row.created_at,
   };
 }
 
 const SELECT_BASE = `
   SELECT p.id, p.name, p.slug, p.price, p.max_devices, p.description, p.features,
-         p.active, p.sort_order, p.created_at,
-         COUNT(s.id)::int AS subscription_count
+         p.active, p.sort_order, p.created_at, p.includes_all_channels,
+         COUNT(DISTINCT s.id)::int AS subscription_count,
+         COUNT(DISTINCT pc.channel_id)::int AS channel_count
   FROM packages p
   LEFT JOIN subscriptions s ON LOWER(s.plan) = p.slug
+  LEFT JOIN package_channels pc ON pc.package_id = p.id
 `;
 
 // GET /api/admin/packages
@@ -91,6 +95,7 @@ router.post("/", async (req, res, next) => {
       features = "",
       active = true,
       sortOrder = 0,
+      includesAllChannels = false,
     } = req.body;
 
     if (!name?.trim() || !slug?.trim()) {
@@ -110,9 +115,9 @@ router.post("/", async (req, res, next) => {
     }
 
     const result = await db.query(
-      `INSERT INTO packages (name, slug, price, max_devices, description, features, active, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, name, slug, price, max_devices, description, features, active, sort_order, created_at`,
+      `INSERT INTO packages (name, slug, price, max_devices, description, features, active, sort_order, includes_all_channels)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, name, slug, price, max_devices, description, features, active, sort_order, created_at, includes_all_channels`,
       [
         name.trim(),
         normalizedSlug,
@@ -122,10 +127,13 @@ router.post("/", async (req, res, next) => {
         features,
         Boolean(active),
         Number(sortOrder) || 0,
+        Boolean(includesAllChannels),
       ],
     );
 
-    res.status(201).json(mapPackage({ ...result.rows[0], subscription_count: 0 }));
+    res.status(201).json(
+      mapPackage({ ...result.rows[0], subscription_count: 0, channel_count: 0 }),
+    );
   } catch (err) {
     next(err);
   }
@@ -143,6 +151,7 @@ router.put("/:id", async (req, res, next) => {
       features,
       active,
       sortOrder,
+      includesAllChannels,
     } = req.body;
 
     const existing = await db.query("SELECT id, slug FROM packages WHERE id = $1", [
@@ -176,9 +185,10 @@ router.put("/:id", async (req, res, next) => {
          description = COALESCE($5, description),
          features = COALESCE($6, features),
          active = COALESCE($7, active),
-         sort_order = COALESCE($8, sort_order)
-       WHERE id = $9
-       RETURNING id, name, slug, price, max_devices, description, features, active, sort_order, created_at`,
+         sort_order = COALESCE($8, sort_order),
+         includes_all_channels = COALESCE($9, includes_all_channels)
+       WHERE id = $10
+       RETURNING id, name, slug, price, max_devices, description, features, active, sort_order, created_at, includes_all_channels`,
       [
         name?.trim(),
         normalizedSlug,
@@ -188,6 +198,7 @@ router.put("/:id", async (req, res, next) => {
         features,
         active !== undefined ? Boolean(active) : null,
         sortOrder !== undefined ? Number(sortOrder) : null,
+        includesAllChannels !== undefined ? Boolean(includesAllChannels) : null,
         req.params.id,
       ],
     );

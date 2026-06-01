@@ -9,6 +9,7 @@ import { fmtRp } from "../utils/format";
 import ActionBtn from "../components/ActionBtn";
 import Badge from "../components/Badge";
 import Modal from "../components/Modal";
+import PackageChannelsModal from "../components/PackageChannelsModal";
 
 const EMPTY_FORM = {
   name: "",
@@ -19,6 +20,7 @@ const EMPTY_FORM = {
   features: "",
   active: true,
   sortOrder: 0,
+  includesAllChannels: false,
 };
 
 const inputStyle = {
@@ -52,6 +54,7 @@ export default function PackagesPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [saving, setSaving] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
+  const [managingChannels, setManagingChannels] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,6 +92,7 @@ export default function PackagesPage() {
       features: p.features || "",
       active: p.active,
       sortOrder: p.sortOrder ?? 0,
+      includesAllChannels: p.includesAllChannels ?? false,
     });
     setSlugTouched(true);
     setShowForm(true);
@@ -115,6 +119,7 @@ export default function PackagesPage() {
         features: form.features,
         active: form.active,
         sortOrder: parseInt(form.sortOrder, 10) || 0,
+        includesAllChannels: form.includesAllChannels,
       };
 
       if (editing) {
@@ -249,6 +254,11 @@ export default function PackagesPage() {
             </div>
             <div style={{ fontSize: 12, color: "#aaa", marginBottom: 8 }}>
               Maks. {p.maxDevices} perangkat · {p.subscriptionCount} subscription
+              {p.includesAllChannels ? (
+                <span style={{ color: "#68D391" }}> · semua channel</span>
+              ) : (
+                <span> · {p.channelCount ?? 0} channel</span>
+              )}
             </div>
             {p.description && (
               <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>{p.description}</div>
@@ -271,7 +281,8 @@ export default function PackagesPage() {
                 ))}
               </div>
             )}
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <ActionBtn label="Channel" color="#68D391" onClick={() => setManagingChannels(p)} />
               <ActionBtn label="Edit" color="#63B3ED" onClick={() => openEdit(p)} />
               <ActionBtn label="Hapus" color="#FC8181" onClick={() => setConfirmDelete(p)} />
             </div>
@@ -296,7 +307,7 @@ export default function PackagesPage() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
             <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-              {["Nama", "Slug", "Harga", "Perangkat", "Subs", "Status", ""].map((h) => (
+              {["Nama", "Slug", "Harga", "Channel", "Subs", "Status", ""].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -318,13 +329,18 @@ export default function PackagesPage() {
                 <td style={{ padding: "12px 16px", fontWeight: 700 }}>{p.name}</td>
                 <td style={{ padding: "12px 16px", fontFamily: "monospace", color: "#888" }}>{p.slug}</td>
                 <td style={{ padding: "12px 16px" }}>{fmtRp(p.price)}</td>
-                <td style={{ padding: "12px 16px" }}>{p.maxDevices}</td>
+                <td style={{ padding: "12px 16px", fontSize: 11 }}>
+                  {p.includesAllChannels ? "Semua" : p.channelCount ?? 0}
+                </td>
                 <td style={{ padding: "12px 16px" }}>{p.subscriptionCount}</td>
                 <td style={{ padding: "12px 16px" }}>
                   <Badge label={p.active ? "Aktif" : "Nonaktif"} type={p.active ? "active" : "offline"} />
                 </td>
                 <td style={{ padding: "12px 16px" }}>
-                  <ActionBtn label="Edit" color="#63B3ED" onClick={() => openEdit(p)} />
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <ActionBtn label="Ch" color="#68D391" onClick={() => setManagingChannels(p)} />
+                    <ActionBtn label="Edit" color="#63B3ED" onClick={() => openEdit(p)} />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -416,6 +432,14 @@ export default function PackagesPage() {
               Paket aktif
             </label>
           </div>
+          <label style={{ fontSize: 11, color: "#888", display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={form.includesAllChannels}
+              onChange={(e) => setForm((f) => ({ ...f, includesAllChannels: e.target.checked }))}
+            />
+            Akses semua channel (tanpa kurasi manual)
+          </label>
           <button
             type="button"
             disabled={saving || !form.name || !form.slug}
@@ -435,6 +459,14 @@ export default function PackagesPage() {
           </button>
         </div>
       </Modal>
+      )}
+
+      {managingChannels && (
+        <PackageChannelsModal
+          pkg={managingChannels}
+          onClose={() => setManagingChannels(null)}
+          onUpdated={load}
+        />
       )}
 
       {confirmDelete && (

@@ -11,7 +11,8 @@
       "db:migrate-packages": "node scripts/migrate-002-packages.js",
       "db:seed-packages": "node scripts/seed-packages.js",
       "db:migrate-channels": "node scripts/migrate-003-channels.js",
-      "db:import-gvision": "node scripts/import-gvision-json.js"
+      "db:import-gvision": "node scripts/import-gvision-json.js",
+      "db:migrate-package-channels": "node scripts/migrate-004-package-channels.js"
     },
     "dependencies": {
       "dotenv":     "^16.4.5",
