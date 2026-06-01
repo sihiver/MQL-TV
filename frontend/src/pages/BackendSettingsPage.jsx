@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { checkHealth } from "../api/client";
+import { fetchEpgStatus, syncEpg } from "../api/epg";
 import { CfgCard, CfgField, CfgSelect, CfgToggle } from "../components/config/ConfigFields";
 
 export default function BackendSettingsPage() {
@@ -20,6 +21,15 @@ export default function BackendSettingsPage() {
   const set = (k, v) => setCfg((p) => ({ ...p, [k]: v }));
   const [saved, setSaved] = useState(false);
   const [dbTest, setDbTest] = useState(null);
+  const [epgInfo, setEpgInfo] = useState(null);
+  const [epgSyncing, setEpgSyncing] = useState(false);
+  const [epgMsg, setEpgMsg] = useState(null);
+
+  useEffect(() => {
+    fetchEpgStatus()
+      .then(setEpgInfo)
+      .catch(() => {});
+  }, []);
 
   const save = () => {
     setSaved(true);
@@ -100,8 +110,75 @@ export default function BackendSettingsPage() {
           <CfgField label="Rate Limit (req/menit)" value={cfg.rateLimit} onChange={(v) => set("rateLimit", v)} type="number" />
         </CfgCard>
 
-        <CfgCard title="🔄 Sinkronisasi" color="#F6AD55">
-          <CfgSelect label="Interval Sync EPG" value={cfg.epgSync} onChange={(v) => set("epgSync", v)} opts={["1h", "3h", "6h", "12h", "24h"]} />
+        <CfgCard title="📺 EPG (epg.pw)" color="#F6AD55">
+          <CfgField
+            label="URL XMLTV"
+            value={epgInfo?.sourceUrl || "https://epg.pw/xmltv/epg_ID.xml"}
+            onChange={() => {}}
+            mono
+          />
+          {epgInfo?.lastSync && (
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 10, lineHeight: 1.6 }}>
+              Terakhir sync:{" "}
+              {new Date(epgInfo.lastSync.synced_at).toLocaleString("id-ID")}
+              <br />
+              Channel cocok: {epgInfo.lastSync.channels_matched} · Program:{" "}
+              {epgInfo.lastSync.programmes_imported}
+            </div>
+          )}
+          {epgMsg && (
+            <div
+              style={{
+                fontSize: 11,
+                color: epgMsg.ok ? "#68D391" : "#FC8181",
+                marginBottom: 10,
+                lineHeight: 1.5,
+              }}
+            >
+              {epgMsg.text}
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={epgSyncing}
+            onClick={async () => {
+              setEpgSyncing(true);
+              setEpgMsg(null);
+              try {
+                const r = await syncEpg();
+                setEpgMsg({
+                  ok: true,
+                  text: `Berhasil: ${r.programmesImported} program, ${r.channelsMatched} channel cocok (${Math.round(r.durationMs / 1000)}s)`,
+                });
+                const st = await fetchEpgStatus();
+                setEpgInfo(st);
+              } catch (e) {
+                setEpgMsg({ ok: false, text: e.message });
+              } finally {
+                setEpgSyncing(false);
+              }
+            }}
+            style={{
+              width: "100%",
+              background: "rgba(246,173,85,0.15)",
+              border: "1px solid rgba(246,173,85,0.35)",
+              color: "#F6AD55",
+              borderRadius: 8,
+              padding: "10px 14px",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: epgSyncing ? "wait" : "pointer",
+            }}
+          >
+            {epgSyncing ? "Menyinkronkan EPG…" : "🔄 Sync EPG Indonesia sekarang"}
+          </button>
+          <div style={{ fontSize: 10, color: "#666", marginTop: 8 }}>
+            Sumber: epg.pw · Jadwal 1 hari lalu s/d 8 hari ke depan
+          </div>
+        </CfgCard>
+
+        <CfgCard title="🔄 Sinkronisasi" color="#9AE6B4">
+          <CfgSelect label="Interval Sync EPG (cron)" value={cfg.epgSync} onChange={(v) => set("epgSync", v)} opts={["1h", "3h", "6h", "12h", "24h"]} />
           <CfgSelect label="Refresh M3U Playlist" value={cfg.m3uRefresh} onChange={(v) => set("m3uRefresh", v)} opts={["1h", "6h", "12h", "24h"]} />
         </CfgCard>
 
