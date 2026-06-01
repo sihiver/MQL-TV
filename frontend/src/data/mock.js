@@ -1,0 +1,51 @@
+export const MOCK = {
+  stats: {
+    totalUsers: 1204,
+    activeStreams: 347,
+    totalChannels: 1247,
+    revenue: 18500000,
+    newUsersToday: 23,
+    uptime: "99.8%",
+    bandwidth: "2.4 TB",
+    activeDevices: 891,
+  },
+  users: [
+    { id: 1, name: "Ahmad Rizki", email: "ahmad@email.com", plan: "premium", status: "active", devices: 2, joined: "2024-01-15", lastSeen: "2 menit lalu", revenue: 150000 },
+    { id: 2, name: "Budi Santoso", email: "budi@email.com", plan: "basic", status: "active", devices: 1, joined: "2024-03-22", lastSeen: "1 jam lalu", revenue: 50000 },
+    { id: 3, name: "Citra Dewi", email: "citra@email.com", plan: "premium", status: "active", devices: 3, joined: "2024-02-10", lastSeen: "5 menit lalu", revenue: 150000 },
+    { id: 4, name: "Dian Pratama", email: "dian@email.com", plan: "free", status: "active", devices: 1, joined: "2024-05-01", lastSeen: "3 jam lalu", revenue: 0 },
+    { id: 5, name: "Eka Wijaya", email: "eka@email.com", plan: "premium", status: "banned", devices: 0, joined: "2024-04-18", lastSeen: "2 hari lalu", revenue: 150000 },
+    { id: 6, name: "Fajar Nugroho", email: "fajar@email.com", plan: "basic", status: "active", devices: 1, joined: "2024-06-05", lastSeen: "30 menit lalu", revenue: 50000 },
+    { id: 7, name: "Gita Lestari", email: "gita@email.com", plan: "premium", status: "active", devices: 2, joined: "2024-01-28", lastSeen: "Sekarang", revenue: 150000 },
+    { id: 8, name: "Hendra Kusuma", email: "hendra@email.com", plan: "free", status: "active", devices: 1, joined: "2024-07-14", lastSeen: "1 hari lalu", revenue: 0 },
+  ],
+  channels: [
+    { id: 1, name: "RCTI", category: "Nasional", status: "live", viewers: 12400, logo: "📺", bitrate: "2.4 Mbps", uptime: "99.9%" },
+    { id: 2, name: "SCTV", category: "Nasional", status: "live", viewers: 8900, logo: "📡", bitrate: "2.1 Mbps", uptime: "99.7%" },
+    { id: 3, name: "Trans7", category: "Nasional", status: "live", viewers: 7500, logo: "🎬", bitrate: "1.8 Mbps", uptime: "99.5%" },
+    { id: 4, name: "ESPN", category: "Sport", status: "live", viewers: 21000, logo: "⚽", bitrate: "3.2 Mbps", uptime: "99.8%" },
+    { id: 5, name: "CNN Indonesia", category: "News", status: "live", viewers: 4300, logo: "📰", bitrate: "1.6 Mbps", uptime: "99.9%" },
+    { id: 6, name: "BeIN Sport 1", category: "Sport", status: "live", viewers: 9800, logo: "🏆", bitrate: "3.0 Mbps", uptime: "99.6%" },
+    { id: 7, name: "Nat Geo", category: "Documentary", status: "offline", viewers: 0, logo: "🌍", bitrate: "—", uptime: "95.2%" },
+    { id: 8, name: "HBO Asia", category: "Movie", status: "live", viewers: 5600, logo: "🎥", bitrate: "4.1 Mbps", uptime: "99.4%" },
+  ],
+  subscriptions: [
+    { id: 1, user: "Ahmad Rizki", plan: "Premium", price: 150000, start: "2024-11-01", end: "2025-11-01", status: "active", method: "Midtrans" },
+    { id: 2, user: "Citra Dewi", plan: "Premium", price: 150000, start: "2024-10-15", end: "2025-10-15", status: "active", method: "Transfer" },
+    { id: 3, user: "Budi Santoso", plan: "Basic", price: 50000, start: "2024-11-05", end: "2024-12-05", status: "active", method: "Midtrans" },
+    { id: 4, user: "Eka Wijaya", plan: "Premium", price: 150000, start: "2024-09-01", end: "2024-10-01", status: "expired", method: "Transfer" },
+    { id: 5, user: "Fajar Nugroho", plan: "Basic", price: 50000, start: "2024-11-10", end: "2024-12-10", status: "active", method: "Midtrans" },
+    { id: 6, user: "Gita Lestari", plan: "Premium", price: 150000, start: "2024-08-20", end: "2025-08-20", status: "active", method: "Transfer" },
+  ],
+  revenueChart: [120, 180, 140, 220, 190, 310, 280, 350, 290, 420, 380, 480],
+  streamChart: [200, 240, 210, 280, 260, 347, 310, 290, 320, 347, 330, 347],
+};
+
+export const LIVE_ACTIVITY = [
+  { user: "Gita Lestari", channel: "ESPN", action: "Mulai stream", time: "2 dtk lalu", color: "#68D391" },
+  { user: "Ahmad Rizki", channel: "HBO Asia", action: "Mulai stream", time: "15 dtk lalu", color: "#68D391" },
+  { user: "Citra Dewi", channel: "BeIN Sport", action: "Mulai stream", time: "1 mnt lalu", color: "#68D391" },
+  { user: "Budi Santoso", channel: "Trans7", action: "Berhenti", time: "2 mnt lalu", color: "#FC8181" },
+  { user: "Fajar Nugroho", channel: "RCTI", action: "Mulai stream", time: "3 mnt lalu", color: "#68D391" },
+  { user: "Dian Pratama", channel: "Metro TV", action: "Error stream", time: "4 mnt lalu", color: "#F6AD55" },
+];

@@ -47,6 +47,8 @@ app.use((err, _req, res, _next) => {
   });
 });
 
+let server;
+
 async function start() {
   try {
     const dbInfo = await testConnection();
@@ -56,7 +58,11 @@ async function start() {
     process.exit(1);
   }
 
-  const server = app.listen(PORT, () => {
+  if (server) {
+    await new Promise((resolve) => server.close(resolve));
+  }
+
+  server = app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
   });
 
@@ -69,6 +75,17 @@ async function start() {
     throw err;
   });
 }
+
+function shutdown() {
+  if (server) {
+    server.close(() => process.exit(0));
+  } else {
+    process.exit(0);
+  }
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 
 start();
 

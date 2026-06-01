@@ -1,0 +1,152 @@
+import { useState } from "react";
+import { checkHealth } from "../api/client";
+import { CfgCard, CfgField, CfgSelect, CfgToggle } from "../components/config/ConfigFields";
+
+export default function BackendSettingsPage() {
+  const [cfg, setCfg] = useState({
+    dbUrl: "postgresql://user:••••@localhost:5432/nusavision",
+    redisUrl: "redis://localhost:6379",
+    jwtExpiry: "1d",
+    streamExpiry: "6h",
+    maxDevices: 3,
+    rateLimit: 100,
+    epgSync: "6h",
+    m3uRefresh: "12h",
+    debugMode: false,
+    maintenanceMode: false,
+    allowRegistration: true,
+    requireEmailVerify: false,
+  });
+  const set = (k, v) => setCfg((p) => ({ ...p, [k]: v }));
+  const [saved, setSaved] = useState(false);
+  const [dbTest, setDbTest] = useState(null);
+
+  const save = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const testDb = async () => {
+    setDbTest("loading");
+    try {
+      const data = await checkHealth({ force: true });
+      setDbTest(`OK — ${data.database} @ ${new Date(data.time).toLocaleTimeString()}`);
+    } catch {
+      setDbTest("Gagal — pastikan backend berjalan di port 3000");
+    }
+  };
+
+  return (
+    <div className="admin-page">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 900 }}>Konfigurasi Backend</div>
+          <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Pengaturan server, database, dan sistem</div>
+        </div>
+        <button
+          type="button"
+          onClick={save}
+          style={{
+            background: saved ? "#68D391" : "#FF6B35",
+            border: "none",
+            color: saved ? "#0d3a1a" : "#fff",
+            borderRadius: 10,
+            padding: "10px 22px",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          {saved ? "✓ Tersimpan" : "Simpan Perubahan"}
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <CfgCard title="🗄️ Database" color="#63B3ED">
+          <CfgField label="PostgreSQL URL" value={cfg.dbUrl} onChange={(v) => set("dbUrl", v)} mono />
+          <CfgField label="Redis URL" value={cfg.redisUrl} onChange={(v) => set("redisUrl", v)} mono />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button
+              type="button"
+              onClick={testDb}
+              style={{
+                flex: 1,
+                background: "rgba(99,179,237,0.1)",
+                border: "1px solid rgba(99,179,237,0.25)",
+                color: "#63B3ED",
+                borderRadius: 8,
+                padding: 8,
+                fontSize: 11,
+                cursor: "pointer",
+              }}
+            >
+              🔗 Test Koneksi API
+            </button>
+          </div>
+          {dbTest && (
+            <div style={{ fontSize: 11, color: dbTest.startsWith("OK") ? "#68D391" : "#FC8181", marginTop: 4 }}>{dbTest}</div>
+          )}
+        </CfgCard>
+
+        <CfgCard title="🔐 Autentikasi" color="#FF6B35">
+          <CfgSelect label="JWT Expiry" value={cfg.jwtExpiry} onChange={(v) => set("jwtExpiry", v)} opts={["1h", "6h", "1d", "7d", "30d"]} />
+          <CfgSelect label="Stream Token Expiry" value={cfg.streamExpiry} onChange={(v) => set("streamExpiry", v)} opts={["1h", "3h", "6h", "12h", "24h"]} />
+          <CfgToggle label="Wajib Verifikasi Email" value={cfg.requireEmailVerify} onChange={(v) => set("requireEmailVerify", v)} />
+          <CfgToggle label="Izinkan Registrasi Baru" value={cfg.allowRegistration} onChange={(v) => set("allowRegistration", v)} />
+        </CfgCard>
+
+        <CfgCard title="⚡ Batas & Rate Limit" color="#68D391">
+          <CfgField label="Maks Perangkat per User" value={cfg.maxDevices} onChange={(v) => set("maxDevices", v)} type="number" />
+          <CfgField label="Rate Limit (req/menit)" value={cfg.rateLimit} onChange={(v) => set("rateLimit", v)} type="number" />
+        </CfgCard>
+
+        <CfgCard title="🔄 Sinkronisasi" color="#F6AD55">
+          <CfgSelect label="Interval Sync EPG" value={cfg.epgSync} onChange={(v) => set("epgSync", v)} opts={["1h", "3h", "6h", "12h", "24h"]} />
+          <CfgSelect label="Refresh M3U Playlist" value={cfg.m3uRefresh} onChange={(v) => set("m3uRefresh", v)} opts={["1h", "6h", "12h", "24h"]} />
+        </CfgCard>
+
+        <CfgCard title="🛠️ Mode Sistem" color="#FC8181">
+          <CfgToggle label="Mode Debug (verbose logs)" value={cfg.debugMode} onChange={(v) => set("debugMode", v)} />
+          <CfgToggle label="Mode Maintenance" value={cfg.maintenanceMode} onChange={(v) => set("maintenanceMode", v)} danger />
+          {cfg.maintenanceMode && (
+            <div
+              style={{
+                padding: "10px 12px",
+                background: "rgba(252,129,129,0.1)",
+                border: "1px solid rgba(252,129,129,0.25)",
+                borderRadius: 8,
+                fontSize: 11,
+                color: "#FC8181",
+              }}
+            >
+              ⚠ Mode maintenance aktif — user tidak bisa login
+            </div>
+          )}
+        </CfgCard>
+
+        <CfgCard title="ℹ️ Info Server" color="#805AD5">
+          {[
+            { label: "Node.js", value: "v18.20.5" },
+            { label: "Express", value: "4.18.2" },
+            { label: "PostgreSQL", value: "16.x" },
+            { label: "Redis", value: "7.2.3" },
+            { label: "API URL", value: import.meta.env.VITE_API_URL || "http://localhost:3000" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "8px 0",
+                borderBottom: "1px solid rgba(255,255,255,0.05)",
+              }}
+            >
+              <span style={{ fontSize: 12, color: "#888" }}>{item.label}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: "monospace", color: "#B794F4" }}>{item.value}</span>
+            </div>
+          ))}
+        </CfgCard>
+      </div>
+    </div>
+  );
+}

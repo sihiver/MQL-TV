@@ -5,7 +5,8 @@
       "start":    "node src/app.js",
       "db:create": "node scripts/create-db.js",
       "db:migrate": "node scripts/migrate.js",
-      "db:setup":  "npm run db:create && npm run db:migrate"
+      "db:setup":  "npm run db:create && npm run db:migrate",
+      "db:seed-users": "node scripts/seed-users.js"
     },
     "dependencies": {
       "dotenv":     "^16.4.5",
