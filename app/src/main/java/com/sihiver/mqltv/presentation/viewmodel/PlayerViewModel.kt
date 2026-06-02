@@ -226,6 +226,31 @@ class PlayerViewModel @Inject constructor(
         _state.update { it.copy(isPlaying = playing) }
     }
 
+    /** Ambil ulang URL stream (token baru) tanpa reset UI channel. */
+    fun refreshStream() {
+        val channel = _state.value.playingChannel ?: return
+        if (_state.value.streamInfo == null) return
+        viewModelScope.launch {
+            runCatching {
+                val domain = withContext(Dispatchers.Default) {
+                    ChannelMapper.toDomain(channel)
+                }
+                val stream = withContext(Dispatchers.IO) {
+                    playStream(domain)
+                }
+                if (_state.value.playingChannel?.id != channel.id) return@runCatching
+                _state.update {
+                    it.copy(
+                        playingChannel = channel.copy(streamUrl = stream.url),
+                        streamInfo = stream,
+                        masterStreamUrl = stream.url,
+                        isPlaying = true,
+                    )
+                }
+            }
+        }
+    }
+
     fun setMuted(muted: Boolean) {
         _state.update { it.copy(isMuted = muted) }
     }

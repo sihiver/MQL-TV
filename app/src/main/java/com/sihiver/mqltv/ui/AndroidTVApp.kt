@@ -179,6 +179,7 @@ fun AndroidTVApp(
                         )
                     },
                     onToggleFav = playerViewModel::toggleFavorite,
+                    onStreamRefresh = playerViewModel::refreshStream,
                 )
             }
 

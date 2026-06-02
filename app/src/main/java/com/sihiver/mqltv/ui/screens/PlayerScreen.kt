@@ -31,6 +31,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -39,7 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -55,6 +56,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -106,6 +108,7 @@ fun PlayerScreen(
     onCloseQualityPicker: () -> Unit,
     onSelectQuality: (StreamQualityOption) -> Unit,
     onToggleFav: (Int) -> Unit,
+    onStreamRefresh: () -> Unit = {},
     liveEpg: LiveEpgNow? = null,
 ) {
     val isFavorite = favorites.contains(playing.id)
@@ -151,6 +154,7 @@ fun PlayerScreen(
             onCloseQualityPicker = onCloseQualityPicker,
             onSelectQuality = onSelectQuality,
             onToggleFav = { onToggleFav(playing.id) },
+            onStreamRefresh = onStreamRefresh,
             liveEpg = liveEpg,
         )
     }
@@ -210,8 +214,17 @@ private fun VideoArea(
     onCloseQualityPicker: () -> Unit,
     onSelectQuality: (StreamQualityOption) -> Unit,
     onToggleFav: () -> Unit,
+    onStreamRefresh: () -> Unit = {},
     liveEpg: LiveEpgNow? = null,
 ) {
+    val view = LocalView.current
+    DisposableEffect(Unit) {
+        view.keepScreenOn = true
+        onDispose {
+            view.keepScreenOn = false
+        }
+    }
+
     val videoSurfaceFocus = remember { FocusRequester() }
     var showOverlay by remember { mutableStateOf(true) }
     var overlayHideGeneration by remember { mutableIntStateOf(0) }
@@ -282,9 +295,8 @@ private fun VideoArea(
                 playing.streamUrl,
                 streamDrmType,
                 streamDrmKey,
-                selectedQualityHeight,
             ) {
-                "${playing.id}|${playing.streamUrl}|$streamDrmType|$streamDrmKey|$selectedQualityHeight"
+                "${playing.id}|${playing.streamUrl}|$streamDrmType|$streamDrmKey"
             }
 
             if (playing.streamUrl.isNotBlank()) {
@@ -299,6 +311,7 @@ private fun VideoArea(
                         drmKey = streamDrmKey,
                         maxVideoHeight = selectedQualityHeight,
                         onLoadingChange = { isPlayerBuffering = it },
+                        onStreamRefresh = onStreamRefresh,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
