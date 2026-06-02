@@ -43,18 +43,10 @@ fun HlsVideoPlayer(
         IptvStreamUrl.resolveHeaders(streamUrl, userAgent, referer)
     }
 
-    val playerConfigKey = listOf(playbackUrl, drmType, drmKey, requestHeaders, maxVideoHeight)
+    val playerConfigKey = listOf(playbackUrl, drmType, drmKey, requestHeaders)
 
     val exoPlayer = remember(playerConfigKey) {
-        val trackSelector = DefaultTrackSelector(context).apply {
-            maxVideoHeight?.let { h ->
-                setParameters(
-                    buildUponParameters()
-                        .setMaxVideoSize(Int.MAX_VALUE, h)
-                        .build(),
-                )
-            }
-        }
+        val trackSelector = DefaultTrackSelector(context)
         val ua = requestHeaders["User-Agent"] ?: "NusaVision/1.0"
         val extraHeaders = requestHeaders.filterKeys { it != "User-Agent" }
 
@@ -112,7 +104,7 @@ fun HlsVideoPlayer(
         }
     }
 
-    LaunchedEffect(playbackUrl, drmType, drmKey, maxVideoHeight) {
+    LaunchedEffect(playbackUrl, drmType, drmKey) {
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
 
@@ -133,6 +125,17 @@ fun HlsVideoPlayer(
         }
         exoPlayer.setMediaItem(mediaItemBuilder.build())
         exoPlayer.prepare()
+    }
+
+    LaunchedEffect(maxVideoHeight) {
+        val trackSelector = exoPlayer.trackSelector as? DefaultTrackSelector ?: return@LaunchedEffect
+        val params = trackSelector.buildUponParameters()
+        if (maxVideoHeight != null) {
+            params.setMaxVideoSize(Int.MAX_VALUE, maxVideoHeight)
+        } else {
+            params.clearVideoSizeConstraints()
+        }
+        trackSelector.setParameters(params.build())
     }
 
     LaunchedEffect(isPlaying, playbackUrl) {

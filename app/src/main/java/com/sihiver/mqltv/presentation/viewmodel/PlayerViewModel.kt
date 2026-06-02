@@ -207,21 +207,16 @@ class PlayerViewModel @Inject constructor(
 
     fun selectQuality(option: StreamQualityOption) {
         val playing = _state.value.playingChannel ?: return
-        val master = _state.value.masterStreamUrl ?: playing.streamUrl
+        val master = _state.value.masterStreamUrl?.takeIf { it.isNotBlank() } ?: playing.streamUrl
 
-        val playbackUrl = when {
-            option.isAuto -> master
-            !option.url.isNullOrBlank() && option.url != master -> option.url
-            else -> master
-        }
-
+        // Tetap putar master manifest; ExoPlayer memilih variant lewat maxVideoHeight.
         _state.update {
             it.copy(
                 showQualityPicker = false,
                 selectedQualityLabel = option.label,
                 selectedQualityHeight = if (option.isAuto) null else option.height,
                 playingChannel = playing.copy(
-                    streamUrl = IptvStreamUrl.resolvePlaybackUrl(playbackUrl),
+                    streamUrl = IptvStreamUrl.resolvePlaybackUrl(master),
                 ),
             )
         }
