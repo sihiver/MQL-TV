@@ -20,6 +20,8 @@ data class ChannelUiState(
     val categories: List<String> = emptyList(),
     val activeCategory: String = "Semua",
     val selectedChannel: Channel? = null,
+    /** Setelah keluar player, fokus dikembalikan ke channel ini. */
+    val restoreFocusChannelId: Int? = null,
     val favorites: List<Int> = emptyList(),
     val isLoading: Boolean = true,
 )
@@ -71,6 +73,19 @@ class ChannelViewModel @Inject constructor(
         _state.update { it.copy(selectedChannel = channel) }
     }
 
+    fun prepareFocusOnReturn(channel: Channel) {
+        _state.update {
+            it.copy(
+                selectedChannel = channel,
+                restoreFocusChannelId = channel.id,
+            )
+        }
+    }
+
+    fun clearFocusRestore() {
+        _state.update { it.copy(restoreFocusChannelId = null) }
+    }
+
     fun toggleFavorite(channelId: Int) {
         viewModelScope.launch { manageFavorite.toggle(channelId) }
     }
@@ -85,13 +100,18 @@ class ChannelViewModel @Inject constructor(
         val activeCategory = category.takeIf { it in categories } ?: "Semua"
         val all = ChannelMapper.toUiList(getChannels.getLocal("Semua"))
         val filtered = ChannelMapper.toUiList(getChannels.getLocal(activeCategory))
+        val current = _state.value
+        val focusId = current.restoreFocusChannelId ?: current.selectedChannel?.id
+        val selected = focusId?.let { id -> filtered.find { ch -> ch.id == id } }
+            ?: current.selectedChannel?.takeIf { ch -> filtered.any { c -> c.id == ch.id } }
+            ?: filtered.firstOrNull()
         _state.update {
             it.copy(
                 channels = all,
                 filteredChannels = filtered,
                 categories = categories,
                 activeCategory = activeCategory,
-                selectedChannel = filtered.firstOrNull() ?: it.selectedChannel,
+                selectedChannel = selected,
                 isLoading = false,
             )
         }

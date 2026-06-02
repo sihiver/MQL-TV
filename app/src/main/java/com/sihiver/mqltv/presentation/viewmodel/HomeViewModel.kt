@@ -21,6 +21,7 @@ data class HomeUiState(
     val featuredChannels: List<Channel> = emptyList(),
     val favoriteChannels: List<Channel> = emptyList(),
     val favorites: List<Int> = emptyList(),
+    val restoreFocusChannelId: Int? = null,
     val isLoading: Boolean = true,
 )
 
@@ -75,6 +76,14 @@ class HomeViewModel @Inject constructor(
                 _state.update { it.copy(isLoading = false) }
             }
         }
+    }
+
+    fun prepareFocusOnReturn(channel: Channel) {
+        _state.update { it.copy(restoreFocusChannelId = channel.id) }
+    }
+
+    fun clearFocusRestore() {
+        _state.update { it.copy(restoreFocusChannelId = null) }
     }
 
     fun toggleFavorite(channelId: Int) {

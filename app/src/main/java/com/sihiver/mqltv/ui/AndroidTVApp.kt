@@ -58,6 +58,11 @@ fun AndroidTVApp(
     val settingsState by settingsViewModel.state.collectAsState()
 
     fun openPlayer(channel: Channel) {
+        when (navState.currentScreen) {
+            AppScreen.CHANNELS -> channelViewModel.prepareFocusOnReturn(channel)
+            AppScreen.HOME -> homeViewModel.prepareFocusOnReturn(channel)
+            else -> Unit
+        }
         navViewModel.openPlayer(channel)
     }
 
@@ -104,9 +109,11 @@ fun AndroidTVApp(
                     featuredChannels = homeState.featuredChannels,
                     favoriteChannels = homeState.favoriteChannels,
                     favorites = homeState.favorites,
+                    restoreFocusChannelId = homeState.restoreFocusChannelId,
                     onNavigate = navViewModel::navigate,
                     onOpenPlayer = ::openPlayer,
                     onToggleFav = homeViewModel::toggleFavorite,
+                    onFocusRestored = homeViewModel::clearFocusRestore,
                 )
             }
 
@@ -120,10 +127,12 @@ fun AndroidTVApp(
                     activeCat = channelState.activeCategory,
                     favorites = channelState.favorites,
                     filtered = channelState.filteredChannels,
+                    restoreFocusChannelId = channelState.restoreFocusChannelId,
                     onActiveCatChange = channelViewModel::setCategory,
                     onNavigate = navViewModel::navigate,
-                    onOpenPlayer = navViewModel::openPlayer,
+                    onOpenPlayer = ::openPlayer,
                     onToggleFav = channelViewModel::toggleFavorite,
+                    onFocusRestored = channelViewModel::clearFocusRestore,
                 )
             }
 
