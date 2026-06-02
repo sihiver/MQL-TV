@@ -6,8 +6,10 @@ import com.sihiver.mqltv.data.network.dto.EpgProgramDto
 import com.sihiver.mqltv.data.network.dto.MeResponse
 import com.sihiver.mqltv.data.network.dto.UserDto
 import com.sihiver.mqltv.data.network.dto.SubscriptionResponse
+import com.sihiver.mqltv.data.network.dto.LiveEpgResponse
 import com.sihiver.mqltv.domain.model.Channel
 import com.sihiver.mqltv.domain.model.EpgProgram
+import com.sihiver.mqltv.domain.model.LiveEpgNow
 import com.sihiver.mqltv.domain.model.UserProfile
 import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import java.time.Instant
@@ -116,3 +118,18 @@ fun EpgProgramDto.toDomain(channelId: Int, now: Instant = Instant.now()): EpgPro
 private fun parseInstant(raw: String): Instant? = runCatching {
     Instant.parse(raw)
 }.getOrNull()
+
+fun LiveEpgResponse.toLiveEpgNow(): LiveEpgNow? {
+    val slot = current ?: return null
+    val start = slot.startLabel?.trim().orEmpty()
+    if (start.isEmpty()) return null
+    val end = slot.endLabel?.trim().orEmpty()
+    val timeLabel = if (end.isNotEmpty()) "$start – $end" else start
+    val nextTitle = next?.title?.trim()?.ifBlank { null }
+    return LiveEpgNow(
+        title = slot.title,
+        timeLabel = timeLabel,
+        nextTitle = nextTitle,
+        isLive = slot.isLive == true,
+    )
+}

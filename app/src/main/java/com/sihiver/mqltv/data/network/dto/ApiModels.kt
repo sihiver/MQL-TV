@@ -106,6 +106,29 @@ data class EpgProgramDto(
     @SerializedName("isLive") val isLive: Boolean? = null,
 )
 
+data class LiveEpgResponse(
+    @SerializedName("channelId") val channelId: Int? = null,
+    @SerializedName("channelName") val channelName: String? = null,
+    @SerializedName("epgId") val epgId: String? = null,
+    val current: LiveEpgSlotDto? = null,
+    val next: LiveEpgNextDto? = null,
+)
+
+data class LiveEpgSlotDto(
+    val title: String,
+    val description: String? = null,
+    val start: String? = null,
+    val end: String? = null,
+    @SerializedName("startLabel") val startLabel: String? = null,
+    @SerializedName("endLabel") val endLabel: String? = null,
+    @SerializedName("isLive") val isLive: Boolean? = null,
+)
+
+data class LiveEpgNextDto(
+    val title: String,
+    @SerializedName("startLabel") val startLabel: String? = null,
+)
+
 data class FavoritesResponse(
     val data: List<FavoriteDto>,
 )

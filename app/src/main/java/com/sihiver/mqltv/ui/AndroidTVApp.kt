@@ -163,6 +163,7 @@ fun AndroidTVApp(
                     streamReferer = playerState.streamInfo?.referer,
                     streamDrmType = playerState.streamInfo?.drmType,
                     streamDrmKey = playerState.streamInfo?.drmKey,
+                    liveEpg = playerState.liveEpg,
                     onBack = navViewModel::closePlayer,
                     onPlayingChange = { playerViewModel.switchChannel(it) },
                     onIsPlayingChange = playerViewModel::setPlaying,

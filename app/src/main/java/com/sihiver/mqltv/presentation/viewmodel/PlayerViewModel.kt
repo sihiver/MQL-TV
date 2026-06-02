@@ -7,6 +7,7 @@ import com.sihiver.mqltv.data.EpgItem
 import com.sihiver.mqltv.data.mapper.ChannelMapper
 import com.sihiver.mqltv.data.mapper.EpgMapper
 import com.sihiver.mqltv.data.stream.IptvStreamUrl
+import com.sihiver.mqltv.domain.model.LiveEpgNow
 import com.sihiver.mqltv.domain.model.StreamQualityOption
 import com.sihiver.mqltv.domain.repository.StreamInfo
 import com.sihiver.mqltv.domain.repository.StreamRepository
@@ -23,6 +24,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,6 +33,7 @@ data class PlayerUiState(
     val playingChannel: Channel? = null,
     val channels: List<Channel> = emptyList(),
     val playerEpg: List<EpgItem> = emptyList(),
+    val liveEpg: LiveEpgNow? = null,
     val streamInfo: StreamInfo? = null,
     val favorites: List<Int> = emptyList(),
     val isPlaying: Boolean = true,
@@ -65,6 +69,7 @@ class PlayerViewModel @Inject constructor(
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
     private var loadChannelJob: Job? = null
+    private var liveEpgJob: Job? = null
     private var lastChannelSyncMs = 0L
 
     init {
@@ -85,11 +90,13 @@ class PlayerViewModel @Inject constructor(
 
     fun loadChannel(channel: Channel) {
         loadChannelJob?.cancel()
+        liveEpgJob?.cancel()
         _state.update {
             it.copy(
                 playingChannel = channel.copy(streamUrl = ""),
                 streamInfo = null,
                 playerEpg = emptyList(),
+                liveEpg = null,
                 isPlaying = false,
                 showEpgOverlay = false,
                 showQualityPicker = false,
@@ -127,6 +134,22 @@ class PlayerViewModel @Inject constructor(
                     )
                 }
             }
+            startLiveEpgPolling(channel.id)
+        }
+    }
+
+    private fun startLiveEpgPolling(channelId: Int) {
+        liveEpgJob?.cancel()
+        liveEpgJob = viewModelScope.launch {
+            while (isActive) {
+                val live = withContext(Dispatchers.IO) {
+                    runCatching { getEpg.getLiveNow(channelId) }.getOrNull()
+                }
+                if (_state.value.playingChannel?.id == channelId) {
+                    _state.update { it.copy(liveEpg = live) }
+                }
+                delay(LIVE_EPG_REFRESH_MS)
+            }
         }
     }
 
@@ -144,6 +167,7 @@ class PlayerViewModel @Inject constructor(
 
     private companion object {
         const val CHANNEL_SYNC_COOLDOWN_MS = 60_000L
+        const val LIVE_EPG_REFRESH_MS = 60_000L
     }
 
     fun openQualityPicker() {

@@ -1,6 +1,7 @@
 package com.sihiver.mqltv.domain.repository
 
 import com.sihiver.mqltv.domain.model.EpgProgram
+import com.sihiver.mqltv.domain.model.LiveEpgNow
 import kotlinx.coroutines.flow.Flow
 
 interface EpgRepository {
@@ -9,4 +10,5 @@ interface EpgRepository {
     suspend fun getAllPrograms(): List<EpgProgram>
     suspend fun syncFromNetwork(epgUrl: String)
     suspend fun syncChannelFromApi(channelId: Int)
+    suspend fun getLiveEpg(channelId: Int): LiveEpgNow?
 }

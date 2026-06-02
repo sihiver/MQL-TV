@@ -6,8 +6,10 @@ import com.sihiver.mqltv.data.local.mapper.toEntity
 import com.sihiver.mqltv.data.network.ApiService
 import com.sihiver.mqltv.data.network.AuthTokenStore
 import com.sihiver.mqltv.data.network.toDomain
+import com.sihiver.mqltv.data.network.toLiveEpgNow
 import com.sihiver.mqltv.data.source.LocalEpgDataSource
 import com.sihiver.mqltv.domain.model.EpgProgram
+import com.sihiver.mqltv.domain.model.LiveEpgNow
 import com.sihiver.mqltv.domain.repository.EpgRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -56,6 +58,13 @@ class EpgRepositoryImpl @Inject constructor(
                 epgDao.insertAll(programs.map { it.toEntity() })
             }
         }
+    }
+
+    override suspend fun getLiveEpg(channelId: Int): LiveEpgNow? {
+        if (tokenStore.token == null) return null
+        return runCatching {
+            api.getLiveEpg(channelId).toLiveEpgNow()
+        }.getOrNull()
     }
 
     private suspend fun ensureSeeded(force: Boolean = false) {

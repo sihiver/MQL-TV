@@ -65,6 +65,7 @@ import com.sihiver.mqltv.R
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.EpgItem
 import com.sihiver.mqltv.presentation.player.HlsVideoPlayer
+import com.sihiver.mqltv.domain.model.LiveEpgNow
 import com.sihiver.mqltv.domain.model.StreamQualityOption
 import com.sihiver.mqltv.presentation.viewmodel.qualityButtonLabel
 import com.sihiver.mqltv.ui.components.ChannelLogoContent
@@ -105,6 +106,7 @@ fun PlayerScreen(
     onCloseQualityPicker: () -> Unit,
     onSelectQuality: (StreamQualityOption) -> Unit,
     onToggleFav: (Int) -> Unit,
+    liveEpg: LiveEpgNow? = null,
 ) {
     val isFavorite = favorites.contains(playing.id)
     val channelListButtonFocus = remember { FocusRequester() }
@@ -149,6 +151,7 @@ fun PlayerScreen(
             onCloseQualityPicker = onCloseQualityPicker,
             onSelectQuality = onSelectQuality,
             onToggleFav = { onToggleFav(playing.id) },
+            liveEpg = liveEpg,
         )
     }
 
@@ -207,6 +210,7 @@ private fun VideoArea(
     onCloseQualityPicker: () -> Unit,
     onSelectQuality: (StreamQualityOption) -> Unit,
     onToggleFav: () -> Unit,
+    liveEpg: LiveEpgNow? = null,
 ) {
     val videoSurfaceFocus = remember { FocusRequester() }
     var showOverlay by remember { mutableStateOf(true) }
@@ -380,14 +384,20 @@ private fun VideoArea(
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(text = "● SIARAN LANGSUNG", fontSize = 11.sp, color = AccentOrange, letterSpacing = 2.sp)
                 Text(
-                    text = playing.program,
+                    text = liveEpg?.title?.takeIf { it.isNotBlank() }
+                        ?: playing.program.ifBlank { "—" },
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.White,
                     modifier = Modifier.padding(top = 4.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = playing.name,
+                    text = buildString {
+                        append(playing.name)
+                        liveEpg?.timeLabel?.takeIf { it.isNotBlank() }?.let { append(" · $it") }
+                    },
                     fontSize = 13.sp,
                     color = TextMuted,
                 )
@@ -466,7 +476,12 @@ private fun VideoArea(
                     },
                     big = true,
                 )
-                Spacer(modifier = Modifier.weight(1f))
+                PlayerLiveEpgStrip(
+                    liveEpg = liveEpg,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp),
+                )
                 CtrlButton(
                     label = if (isFavorite) "⭐" else "☆",
                     onClick = {
@@ -651,7 +666,66 @@ private fun QualityPickerOverlay(
         )
       }
     }
-  }
+    }
+}
+
+@Composable
+private fun PlayerLiveEpgStrip(
+    liveEpg: LiveEpgNow?,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        if (liveEpg == null) {
+            Text(
+                text = "Memuat jadwal…",
+                fontSize = 11.sp,
+                color = TextDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            return@Column
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (liveEpg.isLive) {
+                Text(
+                    text = "● LIVE",
+                    fontSize = 9.sp,
+                    color = AccentOrange,
+                    letterSpacing = 1.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Text(
+                text = liveEpg.timeLabel,
+                fontSize = 10.sp,
+                color = TextMuted,
+                maxLines = 1,
+            )
+        }
+        Text(
+            text = liveEpg.title,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        liveEpg.nextTitle?.let { next ->
+            Text(
+                text = "Berikutnya: $next",
+                fontSize = 10.sp,
+                color = TextDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 @Composable

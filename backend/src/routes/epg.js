@@ -6,6 +6,7 @@ import {
   channelAllowedForPackage,
 } from "../services/packageAccess.js";
 import { getLastEpgSync } from "../services/epgSync.js";
+import { fetchEpgPwLive } from "../services/epgPwLive.js";
 
 const router = Router();
 router.use(authenticate);
@@ -61,6 +62,39 @@ router.get("/status", async (_req, res, next) => {
     res.json({ lastSync: last });
   } catch (err) {
     next(err);
+  }
+});
+
+// GET /api/epg/live/:channelId — EPG realtime dari epg.pw (hanya auth, tanpa cek paket)
+router.get("/live/:channelId", async (req, res, next) => {
+  try {
+    const ch = await db.query(
+      "SELECT id, name, epg_id FROM channels WHERE id = $1 AND active = true",
+      [req.params.channelId],
+    );
+    if (!ch.rows.length) {
+      return res.status(404).json({ error: "Channel tidak ditemukan" });
+    }
+    const row = ch.rows[0];
+    if (!row.epg_id) {
+      return res.json({
+        channelId: row.id,
+        channelName: row.name,
+        epgId: null,
+        current: null,
+        next: null,
+      });
+    }
+    const live = await fetchEpgPwLive(String(row.epg_id));
+    res.json({
+      channelId: row.id,
+      channelName: live.channelName || row.name,
+      epgId: row.epg_id,
+      current: live.current,
+      next: live.next,
+    });
+  } catch (err) {
+    res.status(502).json({ error: err.message || "Gagal mengambil EPG" });
   }
 });
 

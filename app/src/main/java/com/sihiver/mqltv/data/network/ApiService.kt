@@ -4,6 +4,7 @@ import com.sihiver.mqltv.data.network.dto.ChannelCategoriesResponse
 import com.sihiver.mqltv.data.network.dto.ChannelsResponse
 import com.sihiver.mqltv.data.network.dto.EpgListResponse
 import com.sihiver.mqltv.data.network.dto.FavoritesResponse
+import com.sihiver.mqltv.data.network.dto.LiveEpgResponse
 import com.sihiver.mqltv.data.network.dto.LoginRequest
 import com.sihiver.mqltv.data.network.dto.LoginResponse
 import com.sihiver.mqltv.data.network.dto.MeResponse
@@ -59,6 +60,9 @@ interface ApiService {
 
     @GET("api/epg/channel/{channelId}")
     suspend fun getEpg(@Path("channelId") channelId: Int): EpgListResponse
+
+    @GET("api/epg/live/{channelId}")
+    suspend fun getLiveEpg(@Path("channelId") channelId: Int): LiveEpgResponse
 
     @GET("api/favorites")
     suspend fun getFavorites(): FavoritesResponse
