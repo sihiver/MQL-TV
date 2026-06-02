@@ -52,14 +52,16 @@ class StreamRepositoryImpl @Inject constructor(
     override suspend fun fetchQualities(channelId: Int): StreamQualitiesResult {
         return runCatching {
             val res = api.getStreamQualities(channelId)
-            val options = res.data.map { dto ->
-                StreamQualityOption(
-                    id = dto.id,
-                    label = dto.label,
-                    height = dto.height,
-                    url = dto.url?.let { IptvStreamUrl.resolvePlaybackUrl(it) },
-                )
-            }
+            val options = res.data
+                .map { dto ->
+                    StreamQualityOption(
+                        id = dto.id,
+                        label = dto.label,
+                        height = dto.height,
+                        url = dto.url?.let { IptvStreamUrl.resolvePlaybackUrl(it) },
+                    )
+                }
+                .let { dedupeQualityOptions(it) }
             StreamQualitiesResult(
                 options = options,
                 masterUrl = IptvStreamUrl.resolvePlaybackUrl(res.masterUrl),
@@ -72,5 +74,11 @@ class StreamRepositoryImpl @Inject constructor(
     companion object {
         private const val DEMO_HLS =
             "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/bipbop_16x9_variant.m3u8"
+
+        /** Satu opsi per resolusi; "Otomatis" selalu dipertahankan. */
+        private fun dedupeQualityOptions(options: List<StreamQualityOption>): List<StreamQualityOption> {
+            val (auto, rest) = options.partition { it.isAuto }
+            return auto + rest.distinctBy { it.height ?: it.id }
+        }
     }
 }

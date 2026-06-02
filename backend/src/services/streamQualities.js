@@ -19,6 +19,22 @@ function labelFromHeight(height) {
   return `${height}p`;
 }
 
+/** Satu entri per resolusi; jika ada beberapa variant, ambil bandwidth tertinggi. */
+function dedupeQualitiesByHeight(qualities) {
+  const byKey = new Map();
+
+  for (const q of qualities) {
+    const key =
+      q.height != null ? `h${q.height}` : `bw${q.bandwidth ?? byKey.size}`;
+    const existing = byKey.get(key);
+    if (!existing || (q.bandwidth || 0) > (existing.bandwidth || 0)) {
+      byKey.set(key, q);
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
+}
+
 function resolveUrl(uri, baseUrl) {
   try {
     return new URL(uri.trim(), baseUrl).href;
@@ -168,6 +184,8 @@ export async function fetchStreamQualities(manifestUrl, userAgent, referer, user
   } catch (err) {
     console.warn("[streamQualities]", cleanUrl, err.message);
   }
+
+  variants = dedupeQualitiesByHeight(variants);
 
   const withToken = variants.map((v) => {
     const { streamUrl } = generateStreamToken(v.url, userId);
