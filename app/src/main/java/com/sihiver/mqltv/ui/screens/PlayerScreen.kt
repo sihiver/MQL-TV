@@ -436,7 +436,6 @@ private fun VideoArea(
                     iconResId = R.drawable.ic_channel_list,
                     contentDescription = "Daftar channel",
                     big = true,
-                    filled = false,
                     onClick = {
                         showOverlay = false
                         onRequestChannelListPanel()
@@ -465,6 +464,7 @@ private fun VideoArea(
                         bumpOverlayTimer()
                         onIsMutedChange(!isMuted)
                     },
+                    big = true,
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 CtrlButton(
@@ -473,6 +473,7 @@ private fun VideoArea(
                         bumpOverlayTimer()
                         onToggleFav()
                     },
+                    big = true,
                 )
                 QualityButton(
                     label = qualityButtonLabel(selectedQualityLabel),

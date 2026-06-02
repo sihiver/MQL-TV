@@ -279,7 +279,7 @@ fun CtrlButton(
     val iconSize = if (big) 22.dp else 18.dp
     val textSize = if (big) 20.sp else 16.sp
     val focusedScale = if (big) 1.1f else 1.08f
-    val isFilled = filled ?: big
+    val isFilled = filled ?: false
 
     TvFocusableBox(
         onClick = onClick,
