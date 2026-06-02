@@ -386,7 +386,7 @@ private fun VideoArea(
                 Text(
                     text = liveEpg?.title?.takeIf { it.isNotBlank() }
                         ?: playing.program.ifBlank { "—" },
-                    fontSize = 22.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Black,
                     color = Color.White,
                     modifier = Modifier.padding(top = 4.dp),
@@ -398,7 +398,7 @@ private fun VideoArea(
                         append(playing.name)
                         liveEpg?.timeLabel?.takeIf { it.isNotBlank() }?.let { append(" · $it") }
                     },
-                    fontSize = 13.sp,
+                    fontSize = 15.sp,
                     color = TextMuted,
                 )
             }
@@ -681,7 +681,7 @@ private fun PlayerLiveEpgStrip(
         if (liveEpg == null) {
             Text(
                 text = "Memuat jadwal…",
-                fontSize = 11.sp,
+                fontSize = 14.sp,
                 color = TextDim,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -695,7 +695,7 @@ private fun PlayerLiveEpgStrip(
             if (liveEpg.isLive) {
                 Text(
                     text = "● LIVE",
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                     color = AccentOrange,
                     letterSpacing = 1.sp,
                     fontWeight = FontWeight.Bold,
@@ -703,14 +703,14 @@ private fun PlayerLiveEpgStrip(
             }
             Text(
                 text = liveEpg.timeLabel,
-                fontSize = 10.sp,
+                fontSize = 14.sp,
                 color = TextMuted,
                 maxLines = 1,
             )
         }
         Text(
             text = liveEpg.title,
-            fontSize = 13.sp,
+            fontSize = 17.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White,
             maxLines = 1,
@@ -719,7 +719,7 @@ private fun PlayerLiveEpgStrip(
         liveEpg.nextTitle?.let { next ->
             Text(
                 text = "Berikutnya: $next",
-                fontSize = 10.sp,
+                fontSize = 13.sp,
                 color = TextDim,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
