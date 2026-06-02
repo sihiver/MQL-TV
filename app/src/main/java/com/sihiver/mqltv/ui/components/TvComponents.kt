@@ -1,5 +1,7 @@
 package com.sihiver.mqltv.ui.components
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -266,19 +270,39 @@ fun CtrlButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     big: Boolean = false,
+    filled: Boolean? = null,
+    @DrawableRes iconResId: Int? = null,
+    contentDescription: String? = null,
 ) {
+    val buttonSize = if (big) 52.dp else 40.dp
+    val cornerRadius = if (big) 26.dp else 12.dp
+    val iconSize = if (big) 22.dp else 18.dp
+    val textSize = if (big) 20.sp else 16.sp
+    val focusedScale = if (big) 1.1f else 1.08f
+    val isFilled = filled ?: big
+
     TvFocusableBox(
         onClick = onClick,
         accentColor = AccentOrange,
-        shape = RoundedCornerShape(if (big) 26.dp else 12.dp),
-        backgroundColor = if (big) AccentOrange else Color(0x1AFFFFFF),
-        focusedBackgroundColor = if (big) AccentOrange else AccentOrange.copy(alpha = 0.3f),
+        shape = RoundedCornerShape(cornerRadius),
+        backgroundColor = if (isFilled) AccentOrange else Color(0x1AFFFFFF),
+        focusedBackgroundColor = if (isFilled) AccentOrange else AccentOrange.copy(alpha = 0.3f),
         unfocusedBorderWidth = 0.dp,
-        focusedScale = if (big) 1.1f else 1.08f,
-        modifier = modifier.size(if (big) 52.dp else 40.dp),
+        focusedScale = focusedScale,
+        modifier = modifier.size(buttonSize),
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = label, fontSize = if (big) 20.sp else 16.sp, color = Color.White)
+            if (iconResId != null) {
+                Image(
+                    painter = painterResource(iconResId),
+                    contentDescription = contentDescription ?: label,
+                    modifier = Modifier.size(iconSize),
+                    contentScale = ContentScale.Fit,
+                    colorFilter = ColorFilter.tint(Color.White),
+                )
+            } else {
+                Text(text = label, fontSize = textSize, color = Color.White)
+            }
         }
     }
 }

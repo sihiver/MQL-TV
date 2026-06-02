@@ -61,6 +61,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import com.sihiver.mqltv.R
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.EpgItem
 import com.sihiver.mqltv.presentation.player.HlsVideoPlayer
@@ -431,7 +432,11 @@ private fun VideoArea(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 CtrlButton(
-                    label = "📻",
+                    label = "Daftar channel",
+                    iconResId = R.drawable.ic_channel_list,
+                    contentDescription = "Daftar channel",
+                    big = true,
+                    filled = false,
                     onClick = {
                         showOverlay = false
                         onRequestChannelListPanel()
