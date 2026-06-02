@@ -58,6 +58,8 @@ class UserRepositoryImpl @Inject constructor(
                 SubscriptionStatus(
                     isActive = tokenStore.token != null,
                     plan = "Free",
+                    packageName = "Free",
+                    channelCount = 0,
                     expiresAt = "—",
                     daysRemaining = 0,
                 )

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
+import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import com.sihiver.mqltv.ui.components.ChannelCard
 import com.sihiver.mqltv.ui.components.ChannelLogoBox
 import com.sihiver.mqltv.ui.components.LiveBadge
@@ -47,11 +48,18 @@ fun SearchScreen(
     onVoiceSearch: () -> Unit,
     onNavigate: (AppScreen) -> Unit,
     onOpenPlayer: (Channel) -> Unit,
+    subscription: SubscriptionStatus? = null,
 ) {
     val clock = useClock()
 
     Row(modifier = Modifier.fillMaxSize()) {
-        Sidebar(currentScreen = AppScreen.SEARCH, onNavigate = onNavigate, clock = clock)
+        Sidebar(
+            currentScreen = AppScreen.SEARCH,
+            onNavigate = onNavigate,
+            clock = clock,
+            packageName = subscription?.packageName,
+            channelCount = subscription?.channelCount,
+        )
 
         Column(
             modifier = Modifier

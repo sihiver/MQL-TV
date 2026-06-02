@@ -31,6 +31,8 @@ data class SubscriptionResponse(
     val status: String,
     @SerializedName("expires_at") val expiresAt: String? = null,
     @SerializedName("max_devices") val maxDevices: Int? = null,
+    @SerializedName("package_name") val packageName: String? = null,
+    @SerializedName("channel_count") val channelCount: Int? = null,
 )
 
 data class ChannelsResponse(

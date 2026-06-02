@@ -39,6 +39,7 @@ import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.FavoritesSort
 import com.sihiver.mqltv.data.FavoritesViewMode
 import com.sihiver.mqltv.data.sampleChannels
+import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import com.sihiver.mqltv.ui.components.CategoryPills
 import com.sihiver.mqltv.ui.components.ChannelLogoBox
 import com.sihiver.mqltv.ui.components.ChannelLogoContent
@@ -60,6 +61,7 @@ fun FavoritesScreen(
     onOpenPlayer: (Channel) -> Unit,
     onAddFavorite: (Int) -> Unit,
     onRemoveFavorite: (Int) -> Unit,
+    subscription: SubscriptionStatus? = null,
 ) {
     val clock = useClock()
     var sortBy by rememberSaveable { mutableStateOf(FavoritesSort.NAME.name) }
@@ -104,6 +106,8 @@ fun FavoritesScreen(
                 currentScreen = AppScreen.FAVORITES,
                 onNavigate = onNavigate,
                 clock = clock,
+                packageName = subscription?.packageName,
+                channelCount = subscription?.channelCount,
             )
 
             Column(modifier = Modifier.weight(1f).fillMaxHeight()) {

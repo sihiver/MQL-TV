@@ -87,6 +87,9 @@ fun SubscriptionResponse.toStatus(): SubscriptionStatus {
     return SubscriptionStatus(
         isActive = active,
         plan = plan.replaceFirstChar { it.uppercase() },
+        packageName = (packageName?.takeIf { it.isNotBlank() } ?: plan)
+            .replaceFirstChar { it.uppercase() },
+        channelCount = channelCount ?: 0,
         expiresAt = label,
         daysRemaining = days.coerceAtLeast(0),
     )

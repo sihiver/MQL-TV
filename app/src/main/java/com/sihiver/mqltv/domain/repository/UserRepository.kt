@@ -11,6 +11,8 @@ data class AuthResult(
 data class SubscriptionStatus(
     val isActive: Boolean,
     val plan: String,
+    val packageName: String,
+    val channelCount: Int,
     val expiresAt: String,
     val daysRemaining: Int,
 )

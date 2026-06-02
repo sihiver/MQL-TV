@@ -22,6 +22,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
+import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import com.sihiver.mqltv.ui.components.ChannelCard
 import com.sihiver.mqltv.ui.components.SectionLabel
 import com.sihiver.mqltv.ui.components.Sidebar
@@ -36,6 +37,7 @@ fun HomeScreen(
     favoriteChannels: List<Channel>,
     favorites: List<Int>,
     restoreFocusChannelId: Int?,
+    subscription: SubscriptionStatus? = null,
     onNavigate: (AppScreen) -> Unit,
     onOpenPlayer: (Channel) -> Unit,
     onToggleFav: (Int) -> Unit,
@@ -72,6 +74,8 @@ fun HomeScreen(
             currentScreen = AppScreen.HOME,
             onNavigate = onNavigate,
             clock = clock,
+            packageName = subscription?.packageName,
+            channelCount = subscription?.channelCount,
         )
 
         Column(modifier = Modifier.fillMaxSize()) {

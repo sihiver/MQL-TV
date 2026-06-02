@@ -63,6 +63,19 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun refreshSubscription() {
+        viewModelScope.launch {
+            runCatching {
+                val profile = userRepository.getProfile()
+                val sub = checkSubscription()
+                _state.update { it.copy(profile = profile, subscription = sub) }
+            }.onFailure {
+                val sub = checkSubscription()
+                _state.update { it.copy(subscription = sub) }
+            }
+        }
+    }
+
     fun updateSettings(newSettings: AppSettings) {
         updateSettingsUseCase { newSettings }
     }

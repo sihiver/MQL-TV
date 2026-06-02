@@ -71,6 +71,8 @@ fun SettingsScreen(
             currentScreen = AppScreen.SETTINGS,
             onNavigate = onNavigate,
             clock = clock,
+            packageName = subscription?.packageName,
+            channelCount = subscription?.channelCount,
         )
 
         Row(modifier = Modifier.weight(1f).fillMaxHeight()) {

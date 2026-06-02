@@ -56,6 +56,7 @@ fun AndroidTVApp(
     val searchState by searchViewModel.state.collectAsState()
     val favoritesState by favoritesViewModel.state.collectAsState()
     val settingsState by settingsViewModel.state.collectAsState()
+    val subscription = settingsState.subscription
 
     fun openPlayer(channel: Channel) {
         when (navState.currentScreen) {
@@ -89,6 +90,12 @@ fun AndroidTVApp(
         }
     }
 
+    LaunchedEffect(loginState.isLoggedIn) {
+        if (loginState.isLoggedIn) {
+            settingsViewModel.refreshSubscription()
+        }
+    }
+
     when {
         loginState.isCheckingSession -> LoadingBox("Memeriksa sesi…")
         !loginState.isLoggedIn -> LoginScreen(
@@ -110,6 +117,7 @@ fun AndroidTVApp(
                     favoriteChannels = homeState.favoriteChannels,
                     favorites = homeState.favorites,
                     restoreFocusChannelId = homeState.restoreFocusChannelId,
+                    subscription = subscription,
                     onNavigate = navViewModel::navigate,
                     onOpenPlayer = ::openPlayer,
                     onToggleFav = homeViewModel::toggleFavorite,
@@ -128,6 +136,7 @@ fun AndroidTVApp(
                     favorites = channelState.favorites,
                     filtered = channelState.filteredChannels,
                     restoreFocusChannelId = channelState.restoreFocusChannelId,
+                    subscription = subscription,
                     onActiveCatChange = channelViewModel::setCategory,
                     onNavigate = navViewModel::navigate,
                     onOpenPlayer = ::openPlayer,
@@ -179,6 +188,7 @@ fun AndroidTVApp(
                 onFilterChannel = epgViewModel::filterByChannel,
                 onNavigate = navViewModel::navigate,
                 onOpenPlayer = ::openPlayer,
+                subscription = subscription,
             )
 
             AppScreen.SEARCH -> SearchScreen(
@@ -188,12 +198,14 @@ fun AndroidTVApp(
                 onVoiceSearch = searchViewModel::voiceSearch,
                 onNavigate = navViewModel::navigate,
                 onOpenPlayer = ::openPlayer,
+                subscription = subscription,
             )
 
             AppScreen.FAVORITES -> FavoritesScreen(
                 favorites = favoritesState.favorites,
                 onNavigate = navViewModel::navigate,
                 onOpenPlayer = ::openPlayer,
+                subscription = subscription,
                 onAddFavorite = { id ->
                     favoritesViewModel.addFavorite(id) { navViewModel.showToast(it) }
                 },

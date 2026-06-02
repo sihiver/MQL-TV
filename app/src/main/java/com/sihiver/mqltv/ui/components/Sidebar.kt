@@ -74,6 +74,8 @@ fun Sidebar(
     currentScreen: AppScreen,
     onNavigate: (AppScreen) -> Unit,
     clock: String,
+    packageName: String? = null,
+    channelCount: Int? = null,
 ) {
     Column(
         modifier = Modifier
@@ -144,14 +146,14 @@ fun Sidebar(
                 Column {
                     Text(text = "PAKET", fontSize = 9.sp, color = AccentOrange, letterSpacing = 1.sp)
                     Text(
-                        text = "Premium ✦",
+                        text = packageName?.takeIf { it.isNotBlank() } ?: "—",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         modifier = Modifier.padding(top = 2.dp),
                     )
                     Text(
-                        text = "1.200+ Channel",
+                        text = formatSidebarChannelCount(channelCount),
                         fontSize = 10.sp,
                         color = TextMuted,
                         modifier = Modifier.padding(top = 1.dp),
@@ -160,6 +162,13 @@ fun Sidebar(
             }
         }
     }
+}
+
+private fun formatSidebarChannelCount(count: Int?): String {
+    val n = count ?: 0
+    if (n <= 0) return "— Channel"
+    val formatted = "%,d".format(clockLocale, n).replace(',', '.')
+    return "$formatted Channel"
 }
 
 @Composable

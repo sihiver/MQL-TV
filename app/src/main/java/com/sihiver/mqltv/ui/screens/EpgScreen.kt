@@ -31,6 +31,7 @@ import androidx.tv.material3.Text
 import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.EpgItem
+import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import com.sihiver.mqltv.ui.components.ChannelLogoContent
 import com.sihiver.mqltv.ui.components.LiveBadge
 import com.sihiver.mqltv.ui.components.Sidebar
@@ -49,12 +50,19 @@ fun EpgScreen(
     onFilterChannel: (Int?) -> Unit,
     onNavigate: (AppScreen) -> Unit,
     onOpenPlayer: (Channel) -> Unit,
+    subscription: SubscriptionStatus? = null,
 ) {
     val clock = useClock()
     val filteredChannel = selectedChannelId?.let { id -> channels.find { it.id == id } }
 
     Row(modifier = Modifier.fillMaxSize()) {
-        Sidebar(currentScreen = AppScreen.EPG, onNavigate = onNavigate, clock = clock)
+        Sidebar(
+            currentScreen = AppScreen.EPG,
+            onNavigate = onNavigate,
+            clock = clock,
+            packageName = subscription?.packageName,
+            channelCount = subscription?.channelCount,
+        )
 
         Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
             Column(
