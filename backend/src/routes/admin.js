@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { adminPanelAuth } from "../middleware/adminPanel.js";
+import { getDashboardStats } from "../services/dashboardStats.js";
 import usersRouter from "./admin/users.js";
 import subscriptionsRouter from "./admin/subscriptions.js";
 import packagesRouter from "./admin/packages.js";
@@ -11,8 +12,13 @@ const router = Router();
 
 router.use(adminPanelAuth);
 
-router.get("/stats", (_req, res) => {
-  res.json({ message: "Admin stats — coming soon" });
+router.get("/stats", async (_req, res, next) => {
+  try {
+    const data = await getDashboardStats();
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.use("/users", usersRouter);
