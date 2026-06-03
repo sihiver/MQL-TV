@@ -1,6 +1,14 @@
 const rawApiBase = import.meta.env.VITE_API_URL?.trim();
-// In production, prefer same-origin requests (via reverse proxy) when VITE_API_URL is not set.
-const API_BASE = rawApiBase ? rawApiBase.replace(/\/$/, "") : "";
+const useDevProxy =
+  import.meta.env.DEV && import.meta.env.VITE_USE_PROXY !== "false";
+
+// Dev + proxy Vite: request same-origin (/api, /health) → hindari CORS
+// Production: kosongkan VITE_API_URL jika pakai reverse proxy, atau isi URL backend
+const API_BASE = useDevProxy
+  ? ""
+  : rawApiBase
+    ? rawApiBase.replace(/\/$/, "")
+    : "";
 
 let healthPromise = null;
 let lastHealthAt = 0;
@@ -13,10 +21,11 @@ export async function checkHealth({ force = false } = {}) {
   }
 
   lastHealthAt = now;
-  healthPromise = fetch(`${API_BASE}/health`)
-    .then((res) => {
-      if (!res.ok) throw new Error("API offline");
-      return res.json();
+  healthPromise = fetch(`${API_BASE}/health`, { credentials: "include" })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "API offline");
+      return data;
     })
     .catch((err) => {
       healthPromise = null;

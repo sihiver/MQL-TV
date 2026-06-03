@@ -6,6 +6,7 @@
       "db:create": "node scripts/create-db.js",
       "db:migrate": "node scripts/migrate.js",
       "db:setup":  "npm run db:create && npm run db:migrate",
+      "db:setup-all": "bash scripts/setup-all-migrations.sh",
       "db:seed-users": "node scripts/seed-users.js",
       "db:seed-subscriptions": "node scripts/seed-subscriptions.js",
       "db:migrate-packages": "node scripts/migrate-002-packages.js",

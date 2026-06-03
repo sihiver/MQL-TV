@@ -24,7 +24,23 @@ const HOST = process.env.HOST || "0.0.0.0";
 const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
 
 app.use(helmet());
-app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(",") }));
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Tanpa ALLOWED_ORIGINS: izinkan semua (dev / LAN)
+      if (!allowedOrigins?.length) return callback(null, true);
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: "50mb" }));
 app.use(morgan("combined"));
 
@@ -33,7 +49,13 @@ app.get("/health", async (_req, res) => {
     const dbInfo = await testConnection();
     res.json({ status: "ok", database: dbInfo.db, time: dbInfo.now });
   } catch (err) {
-    res.status(503).json({ status: "error", database: err.message });
+    // Tetap 200 agar admin panel tahu API jalan; DB terpisah di field database
+    res.json({
+      status: "degraded",
+      database: "disconnected",
+      error: err.message,
+      time: new Date().toISOString(),
+    });
   }
 });
 

@@ -135,7 +135,8 @@ export default function DashboardPage({ apiOnline }) {
             color: "#FC8181",
           }}
         >
-          ⚠ Backend API offline — tidak dapat memuat data dashboard
+          ⚠ Tidak dapat menjangkau backend — cek VITE_API_URL (frontend/.env), backend harus jalan, dan
+          URL admin ini harus ada di ALLOWED_ORIGINS (backend/.env). Dev: npm run dev (proxy Vite).
         </div>
       )}
 
