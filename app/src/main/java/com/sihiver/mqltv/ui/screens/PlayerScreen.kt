@@ -10,7 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -45,10 +45,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,6 +82,8 @@ import com.sihiver.mqltv.ui.theme.TextDim
 import com.sihiver.mqltv.ui.theme.TextMuted
 
 private const val FULLSCREEN_OVERLAY_HIDE_MS = 5_000L
+private const val CHANNEL_NUMBER_INPUT_MS = 2_000L
+private const val CHANNEL_NUMBER_MAX_DIGITS = 4
 
 @Composable
 fun PlayerScreen(
@@ -156,6 +160,8 @@ fun PlayerScreen(
             onToggleFav = { onToggleFav(playing.id) },
             onStreamRefresh = onStreamRefresh,
             liveEpg = liveEpg,
+            channels = channels,
+            onPlayingChange = onPlayingChange,
         )
     }
 
@@ -216,8 +222,18 @@ private fun VideoArea(
     onToggleFav: () -> Unit,
     onStreamRefresh: () -> Unit = {},
     liveEpg: LiveEpgNow? = null,
+    channels: List<Channel> = emptyList(),
+    onPlayingChange: (Channel) -> Unit = {},
 ) {
     val view = LocalView.current
+    val channelByNumber = rememberChannelByNumber(channels)
+    val playingChannelNumber = remember(channels, playing.id) {
+        channels.indexOfFirst { it.id == playing.id }.let { idx ->
+            if (idx >= 0) idx + 1 else null
+        }
+    }
+    var channelNumberBuffer by remember { mutableStateOf("") }
+    var channelNumberInputGeneration by remember { mutableIntStateOf(0) }
     DisposableEffect(Unit) {
         view.keepScreenOn = true
         onDispose {
@@ -243,7 +259,29 @@ private fun VideoArea(
         overlayHideGeneration++
     }
 
+    fun applyChannelNumber(buffer: String) {
+        val number = buffer.toIntOrNull() ?: return
+        val target = channelByNumber[number] ?: return
+        if (target.id != playing.id) {
+            onPlayingChange(target)
+            onIsPlayingChange(true)
+        }
+    }
+
+    fun clearChannelNumberInput() {
+        channelNumberBuffer = ""
+        channelNumberInputGeneration++
+    }
+
+    LaunchedEffect(channelNumberBuffer, channelNumberInputGeneration) {
+        if (channelNumberBuffer.isEmpty()) return@LaunchedEffect
+        delay(CHANNEL_NUMBER_INPUT_MS)
+        applyChannelNumber(channelNumberBuffer)
+        channelNumberBuffer = ""
+    }
+
     LaunchedEffect(playing.id) {
+        clearChannelNumberInput()
         showOverlay = true
         overlayHideGeneration++
     }
@@ -273,16 +311,43 @@ private fun VideoArea(
                 .focusRequester(videoSurfaceFocus)
                 .focusable()
                 .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    if (showQualityPicker || channelListOpen) return@onPreviewKeyEvent false
+
+                    event.digitOrNull()?.let { digit ->
+                        if (channelNumberBuffer.length < CHANNEL_NUMBER_MAX_DIGITS) {
+                            channelNumberBuffer += digit
+                            channelNumberInputGeneration++
+                        }
+                        return@onPreviewKeyEvent true
+                    }
+
+                    if (channelNumberBuffer.isNotEmpty()) {
+                        when (event.key) {
+                            Key.Enter, Key.DirectionCenter -> {
+                                applyChannelNumber(channelNumberBuffer)
+                                clearChannelNumberInput()
+                                return@onPreviewKeyEvent true
+                            }
+                            Key.Back -> {
+                                if (channelNumberBuffer.length > 1) {
+                                    channelNumberBuffer = channelNumberBuffer.dropLast(1)
+                                    channelNumberInputGeneration++
+                                } else {
+                                    clearChannelNumberInput()
+                                }
+                                return@onPreviewKeyEvent true
+                            }
+                        }
+                    }
+
                     when {
                         !showOverlay &&
-                            event.type == KeyEventType.KeyDown &&
                             (event.key == Key.DirectionCenter || event.key == Key.Enter) -> {
                             bumpOverlayTimer()
                             true
                         }
-                        showOverlay &&
-                            event.type == KeyEventType.KeyDown &&
-                            event.key != Key.Back -> {
+                        showOverlay && event.key != Key.Back -> {
                             bumpOverlayTimer()
                             false
                         }
@@ -408,6 +473,7 @@ private fun VideoArea(
                 )
                 Text(
                     text = buildString {
+                        playingChannelNumber?.let { append("CH $it · ") }
                         append(playing.name)
                         liveEpg?.timeLabel?.takeIf { it.isNotBlank() }?.let { append(" · $it") }
                     },
@@ -417,6 +483,13 @@ private fun VideoArea(
             }
             }
         }
+
+        ChannelNumberInputOverlay(
+            input = channelNumberBuffer,
+            channelByNumber = channelByNumber,
+            maxChannelNumber = channels.size,
+            modifier = Modifier.align(Alignment.TopEnd),
+        )
 
         AnimatedVisibility(
             visible = overlayVisible,
@@ -524,6 +597,100 @@ private fun VideoArea(
                 selectedLabel = selectedQualityLabel,
                 onClose = onCloseQualityPicker,
                 onSelect = onSelectQuality,
+            )
+        }
+    }
+}
+
+@Composable
+private fun rememberChannelByNumber(channels: List<Channel>): Map<Int, Channel> =
+    remember(channels) {
+        channels.mapIndexed { index, channel -> (index + 1) to channel }.toMap()
+    }
+
+private fun KeyEvent.digitOrNull(): Char? {
+    val digit = when (key) {
+        Key.Zero, Key.NumPad0 -> '0'
+        Key.One, Key.NumPad1 -> '1'
+        Key.Two, Key.NumPad2 -> '2'
+        Key.Three, Key.NumPad3 -> '3'
+        Key.Four, Key.NumPad4 -> '4'
+        Key.Five, Key.NumPad5 -> '5'
+        Key.Six, Key.NumPad6 -> '6'
+        Key.Seven, Key.NumPad7 -> '7'
+        Key.Eight, Key.NumPad8 -> '8'
+        Key.Nine, Key.NumPad9 -> '9'
+        else -> null
+    }
+    if (digit != null) return digit
+    val cp = utf16CodePoint
+    return if (cp in '0'.code..'9'.code) cp.toChar() else null
+}
+
+@Composable
+private fun ChannelNumberInputOverlay(
+    input: String,
+    channelByNumber: Map<Int, Channel>,
+    maxChannelNumber: Int,
+    modifier: Modifier = Modifier,
+) {
+    val previewNumber = input.toIntOrNull()
+    val previewChannel = previewNumber?.let { channelByNumber[it] }
+
+    AnimatedVisibility(
+        visible = input.isNotEmpty(),
+        enter = fadeIn(animationSpec = tween(150)),
+        exit = fadeOut(animationSpec = tween(200)),
+        modifier = modifier.padding(top = 36.dp, end = 36.dp),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.End,
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0xE6121212))
+                .border(1.dp, AccentOrange.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 22.dp, vertical = 16.dp),
+        ) {
+            Text(
+                text = "NOMOR CHANNEL",
+                fontSize = 10.sp,
+                color = TextDim,
+                letterSpacing = 2.sp,
+            )
+            Text(
+                text = input,
+                fontSize = 44.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            when {
+                previewChannel != null -> {
+                    Text(
+                        text = previewChannel.name,
+                        fontSize = 14.sp,
+                        color = AccentOrange,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 6.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                previewNumber != null && previewNumber > maxChannelNumber -> {
+                    Text(
+                        text = "Channel tidak ada",
+                        fontSize = 12.sp,
+                        color = Color(0xFFFC8181),
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            }
+            Text(
+                text = "OK konfirmasi · ⌫ hapus · 1–$maxChannelNumber",
+                fontSize = 10.sp,
+                color = TextMuted,
+                modifier = Modifier.padding(top = 10.dp),
             )
         }
     }
@@ -950,12 +1117,13 @@ private fun ChannelListPanel(
                     }
                 },
         ) {
-            items(
+            itemsIndexed(
                 items = channels,
-                key = { it.id },
-            ) { channel ->
+                key = { _, ch -> ch.id },
+            ) { index, channel ->
                 ChannelListItem(
                     channel = channel,
+                    channelNumber = index + 1,
                     isActive = channel.id == playing.id,
                     channelListFocus = channelListFocus,
                     onSelect = { onChannelSelect(channel) },
@@ -1000,6 +1168,7 @@ private fun ChannelListLogoBadge(channel: Channel) {
 @Composable
 private fun ChannelListItem(
     channel: Channel,
+    channelNumber: Int,
     isActive: Boolean,
     channelListFocus: FocusRequester,
     onSelect: () -> Unit,
@@ -1025,6 +1194,14 @@ private fun ChannelListItem(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(
+                text = channelNumber.toString(),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isActive) AccentOrange else TextDim,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.width(36.dp),
+            )
             ChannelListLogoBadge(channel = channel)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
