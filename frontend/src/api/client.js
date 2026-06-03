@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const rawApiBase = import.meta.env.VITE_API_URL?.trim();
+// In production, prefer same-origin requests (via reverse proxy) when VITE_API_URL is not set.
+const API_BASE = rawApiBase ? rawApiBase.replace(/\/$/, "") : "";
 
 let healthPromise = null;
 let lastHealthAt = 0;
