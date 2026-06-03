@@ -14,7 +14,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -55,7 +58,10 @@ fun HlsVideoPlayer(
     val isPlayingState = rememberUpdatedState(isPlaying)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
     var retryJob by remember { mutableStateOf<Job?>(null) }
+    var playbackAllowed by remember { mutableStateOf(true) }
+    val playbackAllowedState = rememberUpdatedState(playbackAllowed)
 
     val (playbackUrl, requestHeaders) = remember(streamUrl, userAgent, referer) {
         IptvStreamUrl.resolveHeaders(streamUrl, userAgent, referer)
@@ -126,16 +132,38 @@ fun HlsVideoPlayer(
     fun scheduleRetry(retryCount: Int, onExhausted: () -> Unit) {
         retryJob?.cancel()
         if (retryCount >= MAX_ERROR_RETRIES) {
-            onExhausted()
+            if (playbackAllowedState.value) onExhausted()
             return
         }
         retryJob = scope.launch {
             delay(ERROR_RETRY_DELAY_MS * (retryCount + 1))
-            if (!isActive || !isPlayingState.value) return@launch
+            if (!isActive || !isPlayingState.value || !playbackAllowed) return@launch
             exoPlayer.stop()
             exoPlayer.clearMediaItems()
             startPlayback()
         }
+    }
+
+    DisposableEffect(lifecycleOwner, exoPlayer) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    playbackAllowed = false
+                    retryJob?.cancel()
+                    exoPlayer.pause()
+                    exoPlayer.playWhenReady = false
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    playbackAllowed = true
+                    if (isPlayingState.value && playbackUrl.isNotBlank()) {
+                        exoPlayer.playWhenReady = true
+                    }
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     DisposableEffect(exoPlayer) {
@@ -155,7 +183,7 @@ fun HlsVideoPlayer(
                 emitBufferingState()
                 when (playbackState) {
                     Player.STATE_READY -> errorRetries = 0
-                    Player.STATE_ENDED -> if (isPlayingState.value) {
+                    Player.STATE_ENDED -> if (isPlayingState.value && playbackAllowed) {
                         exoPlayer.seekToDefaultPosition()
                         exoPlayer.prepare()
                         exoPlayer.playWhenReady = true
@@ -170,6 +198,7 @@ fun HlsVideoPlayer(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                if (!playbackAllowedState.value) return
                 scheduleRetry(errorRetries) {
                     errorRetries = 0
                     onStreamRefreshState.value()
@@ -207,8 +236,8 @@ fun HlsVideoPlayer(
         trackSelector.setParameters(params.build())
     }
 
-    LaunchedEffect(isPlaying, playbackUrl) {
-        exoPlayer.playWhenReady = isPlaying && playbackUrl.isNotBlank()
+    LaunchedEffect(isPlaying, playbackUrl, playbackAllowed) {
+        exoPlayer.playWhenReady = isPlaying && playbackUrl.isNotBlank() && playbackAllowed
     }
 
     LaunchedEffect(isMuted) {
@@ -216,11 +245,11 @@ fun HlsVideoPlayer(
     }
 
     // Watchdog: pulihkan jika player macet IDLE/ENDED saat seharusnya playing.
-    LaunchedEffect(isPlaying, playbackUrl) {
-        if (!isPlaying || playbackUrl.isBlank()) return@LaunchedEffect
+    LaunchedEffect(isPlaying, playbackUrl, playbackAllowed) {
+        if (!isPlaying || playbackUrl.isBlank() || !playbackAllowed) return@LaunchedEffect
         while (isActive) {
             delay(WATCHDOG_INTERVAL_MS)
-            if (!isPlayingState.value) continue
+            if (!isPlayingState.value || !playbackAllowed) continue
             when (exoPlayer.playbackState) {
                 Player.STATE_IDLE, Player.STATE_ENDED -> {
                     exoPlayer.stop()

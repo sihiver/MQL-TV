@@ -116,15 +116,26 @@ esac
 
 CLASSPATH="\\\"\\\""
 
-# JRE Cursor/VS Code tidak punya jlink — Android Gradle Plugin butuh JDK lengkap.
-if [ -n "$JAVA_HOME" ] && [ ! -x "$JAVA_HOME/bin/jlink" ]; then
+# JRE Cursor/VS Code/Red Hat extension tidak punya jlink — AGP butuh JDK lengkap.
+_mqltv_use_system_jdk() {
     for _jdk in /usr/lib/jvm/java-17-openjdk-amd64 /usr/lib/jvm/java-21-openjdk-amd64; do
         if [ -x "$_jdk/bin/jlink" ]; then
             JAVA_HOME=$_jdk
             export JAVA_HOME
-            break
+            return 0
         fi
     done
+    return 1
+}
+
+case "${JAVA_HOME:-}" in
+    *".cursor"*|*"redhat.java"*|*"jetbrains"*)
+        _mqltv_use_system_jdk
+        ;;
+esac
+
+if [ -z "${JAVA_HOME:-}" ] || [ ! -x "$JAVA_HOME/bin/jlink" ]; then
+    _mqltv_use_system_jdk
 fi
 
 # Determine the Java command to use to start the JVM.

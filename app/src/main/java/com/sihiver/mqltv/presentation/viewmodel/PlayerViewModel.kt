@@ -71,6 +71,7 @@ class PlayerViewModel @Inject constructor(
     private var loadChannelJob: Job? = null
     private var liveEpgJob: Job? = null
     private var lastChannelSyncMs = 0L
+    private var resumePlaybackAfterForeground = false
 
     init {
         viewModelScope.launch {
@@ -224,6 +225,31 @@ class PlayerViewModel @Inject constructor(
 
     fun setPlaying(playing: Boolean) {
         _state.update { it.copy(isPlaying = playing) }
+    }
+
+    /** App ke background — hentikan audio & polling EPG. */
+    fun onAppBackground() {
+        val onPlayer = _state.value.playingChannel != null
+        resumePlaybackAfterForeground = onPlayer && _state.value.isPlaying
+        if (onPlayer) {
+            setPlaying(false)
+            liveEpgJob?.cancel()
+        }
+    }
+
+    /** App kembali ke foreground — lanjutkan jika masih di layar player. */
+    fun onAppForeground() {
+        if (!resumePlaybackAfterForeground) return
+        resumePlaybackAfterForeground = false
+        setPlaying(true)
+        _state.value.playingChannel?.id?.let { startLiveEpgPolling(it) }
+    }
+
+    /** Keluar dari layar player (navigasi / back). */
+    fun onLeavePlayer() {
+        resumePlaybackAfterForeground = false
+        setPlaying(false)
+        liveEpgJob?.cancel()
     }
 
     /** Ambil ulang URL stream (token baru) tanpa reset UI channel. */
