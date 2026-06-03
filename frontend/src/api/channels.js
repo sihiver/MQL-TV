@@ -20,6 +20,13 @@ export function importChannelsFromJson(data, mode = "replace") {
   });
 }
 
+export function importChannelsFromM3u({ content, url, mode = "replace" } = {}) {
+  return apiFetch("/api/admin/channels/import/m3u", {
+    method: "POST",
+    body: JSON.stringify({ content, url, mode }),
+  });
+}
+
 export function createChannel(body) {
   return apiFetch("/api/admin/channels", {
     method: "POST",

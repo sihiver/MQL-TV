@@ -5,6 +5,7 @@ import {
   fetchAdminChannels,
   fetchChannelCategories,
   importChannelsFromJson,
+  importChannelsFromM3u,
   toggleChannel,
   updateChannel,
 } from "../api/channels";
@@ -45,7 +46,9 @@ export default function ChannelsPage() {
   const [filterCat, setFilterCat] = useState("Semua");
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [importFormat, setImportFormat] = useState("json");
   const [importMode, setImportMode] = useState("replace");
+  const [m3uUrl, setM3uUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -169,8 +172,16 @@ export default function ChannelsPage() {
 
     try {
       const text = await file.text();
-      const json = JSON.parse(text);
-      const result = await importChannelsFromJson(json, importMode);
+      const isM3u =
+        importFormat === "m3u" ||
+        /\.m3u8?$/i.test(file.name) ||
+        text.includes("#EXTM3U") ||
+        text.includes("#EXTINF");
+
+      const result = isM3u
+        ? await importChannelsFromM3u({ content: text, mode: importMode })
+        : await importChannelsFromJson(JSON.parse(text), importMode);
+
       setImportResult(result);
       setPage(1);
       load();
@@ -180,6 +191,32 @@ export default function ChannelsPage() {
     } finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const handleM3uUrlImport = async () => {
+    if (!m3uUrl.trim()) {
+      setError("URL playlist M3U wajib diisi");
+      return;
+    }
+
+    setImporting(true);
+    setError(null);
+    setImportResult(null);
+
+    try {
+      const result = await importChannelsFromM3u({
+        url: m3uUrl.trim(),
+        mode: importMode,
+      });
+      setImportResult(result);
+      setPage(1);
+      load();
+      loadCategories();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -237,6 +274,7 @@ export default function ChannelsPage() {
             onClick={() => {
               setShowImport(true);
               setImportResult(null);
+              setM3uUrl("");
             }}
             style={{
               background: "rgba(99,179,237,0.2)",
@@ -249,7 +287,7 @@ export default function ChannelsPage() {
               cursor: "pointer",
             }}
           >
-            ⬆ Import JSON
+            ⬆ Import JSON / M3U
           </button>
           <button
             type="button"
@@ -415,7 +453,7 @@ export default function ChannelsPage() {
 
         {!loading && channels.length === 0 && (
           <div style={{ padding: 40, textAlign: "center", color: "#666", fontSize: 13 }}>
-            Belum ada channel. Import file gvision_channels.json untuk memulai.
+            Belum ada channel. Import file JSON Gvision atau playlist M3U untuk memulai.
           </div>
         )}
       </div>
@@ -505,11 +543,55 @@ export default function ChannelsPage() {
       )}
 
       {showImport && (
-        <Modal title="Import Channel dari JSON" onClose={() => setShowImport(false)}>
-          <p style={{ fontSize: 12, color: "#aaa", marginBottom: 16, lineHeight: 1.6 }}>
-            Format <strong>Gvision</strong>: file dengan <code>categories[].channels[]</code> (contoh:{" "}
-            <code>gvision_channels.json</code>). ~2000 channel, proses bisa 10–30 detik.
-          </p>
+        <Modal title="Import Channel" onClose={() => setShowImport(false)}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            {[
+              { id: "json", label: "JSON Gvision" },
+              { id: "m3u", label: "M3U Playlist" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                disabled={importing}
+                onClick={() => {
+                  setImportFormat(tab.id);
+                  setImportResult(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border:
+                    importFormat === tab.id
+                      ? "1px solid rgba(99,179,237,0.5)"
+                      : "1px solid rgba(255,255,255,0.1)",
+                  background:
+                    importFormat === tab.id
+                      ? "rgba(99,179,237,0.2)"
+                      : "rgba(255,255,255,0.05)",
+                  color: importFormat === tab.id ? "#63B3ED" : "#aaa",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: importing ? "not-allowed" : "pointer",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {importFormat === "json" ? (
+            <p style={{ fontSize: 12, color: "#aaa", marginBottom: 16, lineHeight: 1.6 }}>
+              Format <strong>Gvision</strong>: file dengan <code>categories[].channels[]</code> (contoh:{" "}
+              <code>gvision_channels.json</code>). ~2000 channel, proses bisa 10–30 detik.
+            </p>
+          ) : (
+            <p style={{ fontSize: 12, color: "#aaa", marginBottom: 16, lineHeight: 1.6 }}>
+              Upload file <strong>.m3u</strong> / <strong>.m3u8</strong> atau tempel URL playlist.
+              Parser membaca <code>#EXTINF</code>, <code>group-title</code>, <code>tvg-logo</code>, dan{" "}
+              <code>tvg-id</code>.
+            </p>
+          )}
 
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>MODE IMPORT</div>
@@ -531,14 +613,55 @@ export default function ChannelsPage() {
             </label>
           </div>
 
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".json,application/json"
-            disabled={importing}
-            onChange={handleImportFile}
-            style={{ fontSize: 12, color: "#ccc", width: "100%" }}
-          />
+          {importFormat === "json" ? (
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json,application/json"
+              disabled={importing}
+              onChange={handleImportFile}
+              style={{ fontSize: 12, color: "#ccc", width: "100%" }}
+            />
+          ) : (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".m3u,.m3u8,text/plain,application/vnd.apple.mpegurl"
+                disabled={importing}
+                onChange={handleImportFile}
+                style={{ fontSize: 12, color: "#ccc", width: "100%", marginBottom: 12 }}
+              />
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>ATAU URL PLAYLIST</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={m3uUrl}
+                  onChange={(e) => setM3uUrl(e.target.value)}
+                  placeholder="https://example.com/playlist.m3u"
+                  disabled={importing}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <button
+                  type="button"
+                  disabled={importing || !m3uUrl.trim()}
+                  onClick={handleM3uUrlImport}
+                  style={{
+                    background: "rgba(104,211,145,0.2)",
+                    border: "1px solid rgba(104,211,145,0.4)",
+                    color: "#68D391",
+                    borderRadius: 10,
+                    padding: "10px 16px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: importing || !m3uUrl.trim() ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Import URL
+                </button>
+              </div>
+            </>
+          )}
 
           {importing && (
             <div style={{ marginTop: 16, fontSize: 12, color: "#F6AD55" }}>

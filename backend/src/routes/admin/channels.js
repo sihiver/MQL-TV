@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "../../config/database.js";
 import { redis } from "../../config/redis.js";
 import { importGvisionChannels } from "../../services/gvisionImport.js";
+import { importM3uChannels } from "../../services/m3uImport.js";
 
 const router = Router();
 
@@ -48,6 +49,22 @@ router.get("/categories/list", async (_req, res, next) => {
     );
     res.json({ data: result.rows });
   } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/channels/import/m3u — body: { content?, url?, mode? }
+router.post("/import/m3u", async (req, res, next) => {
+  try {
+    const mode = req.body.mode === "append" ? "append" : "replace";
+    const { content, url } = req.body;
+
+    const result = await importM3uChannels({ content, url, mode });
+    res.json(result);
+  } catch (err) {
+    if (err.message) {
+      return res.status(400).json({ error: err.message });
+    }
     next(err);
   }
 });

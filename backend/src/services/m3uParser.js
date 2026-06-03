@@ -1,33 +1,49 @@
 import axios from "axios";
 
+const STREAM_URL_PATTERN = /^(https?|rtmp|rtsp):\/\//i;
+
 export async function parseM3UFromUrl(url) {
-  const { data } = await axios.get(url, { timeout: 15000 });
-  return parseM3UContent(data);
+  const { data } = await axios.get(url, { timeout: 15000, responseType: "text" });
+  return parseM3UContent(typeof data === "string" ? data : String(data));
 }
 
 export function parseM3UContent(content) {
-  const lines   = content.split("\n").map(l => l.trim());
+  const lines = String(content)
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
   const channels = [];
-  let i = 0;
 
-  while (i < lines.length) {
-    if (lines[i].startsWith("#EXTINF")) {
-      const meta = lines[i];
-      const url  = lines[i + 1];
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith("#EXTINF")) continue;
 
-      if (url && url.startsWith("http")) {
-        channels.push({
-          name    : meta.match(/,(.+)$/)?.[1]?.trim() ?? "Unknown",
-          logo    : meta.match(/tvg-logo="([^"]+)"/)?.[1] ?? null,
-          epgId   : meta.match(/tvg-id="([^"]+)"/)?.[1] ?? null,
-          category: meta.match(/group-title="([^"]+)"/)?.[1] ?? "Lainnya",
-          url,
-        });
+    const meta = lines[i];
+    let url = null;
+
+    for (let j = i + 1; j < lines.length && j < i + 6; j++) {
+      const line = lines[j];
+      if (line.startsWith("#")) continue;
+      if (STREAM_URL_PATTERN.test(line)) {
+        url = line;
+        break;
       }
-      i += 2;
-    } else {
-      i++;
     }
+
+    if (!url) continue;
+
+    const name =
+      meta.match(/tvg-name="([^"]+)"/i)?.[1]?.trim() ||
+      meta.match(/,(.+)$/)?.[1]?.trim() ||
+      "Unknown";
+
+    channels.push({
+      name,
+      logo: meta.match(/tvg-logo="([^"]+)"/i)?.[1] || null,
+      epgId: meta.match(/tvg-id="([^"]+)"/i)?.[1] || null,
+      category: meta.match(/group-title="([^"]+)"/i)?.[1] || "Lainnya",
+      url,
+    });
   }
 
   return channels;
