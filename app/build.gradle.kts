@@ -7,16 +7,12 @@ plugins {
 
 android {
     namespace = "com.sihiver.mqltv"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.sihiver.mqltv"
         minSdk = 23
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
         buildConfigField("String", "API_BASE_URL", "\"http://192.168.15.131:3000/\"")

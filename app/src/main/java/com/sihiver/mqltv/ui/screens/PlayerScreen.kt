@@ -273,6 +273,17 @@ private fun VideoArea(
         channelNumberInputGeneration++
     }
 
+    fun switchToAdjacentChannel(direction: Int) {
+        if (channels.isEmpty()) return
+        clearChannelNumberInput()
+        val target = adjacentChannel(channels, playing.id, direction) ?: return
+        if (target.id != playing.id) {
+            onPlayingChange(target)
+            onIsPlayingChange(true)
+            bumpOverlayTimer()
+        }
+    }
+
     LaunchedEffect(channelNumberBuffer, channelNumberInputGeneration) {
         if (channelNumberBuffer.isEmpty()) return@LaunchedEffect
         delay(CHANNEL_NUMBER_INPUT_MS)
@@ -302,58 +313,70 @@ private fun VideoArea(
     val overlayVisible = showOverlay && !channelListOpen
 
     Box(
-        modifier = modifier.background(Color.Black),
+        modifier = modifier
+            .background(Color.Black)
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (showQualityPicker || channelListOpen) return@onPreviewKeyEvent false
+
+                event.digitOrNull()?.let { digit ->
+                    if (channelNumberBuffer.length < CHANNEL_NUMBER_MAX_DIGITS) {
+                        channelNumberBuffer += digit
+                        channelNumberInputGeneration++
+                    }
+                    return@onPreviewKeyEvent true
+                }
+
+                if (channelNumberBuffer.isNotEmpty()) {
+                    when (event.key) {
+                        Key.Enter, Key.DirectionCenter -> {
+                            applyChannelNumber(channelNumberBuffer)
+                            clearChannelNumberInput()
+                            return@onPreviewKeyEvent true
+                        }
+                        Key.Back -> {
+                            if (channelNumberBuffer.length > 1) {
+                                channelNumberBuffer = channelNumberBuffer.dropLast(1)
+                                channelNumberInputGeneration++
+                            } else {
+                                clearChannelNumberInput()
+                            }
+                            return@onPreviewKeyEvent true
+                        }
+                    }
+                }
+
+                when (event.key) {
+                    Key.DirectionDown, Key.ChannelUp -> {
+                        switchToAdjacentChannel(+1)
+                        return@onPreviewKeyEvent true
+                    }
+                    Key.DirectionUp, Key.ChannelDown -> {
+                        switchToAdjacentChannel(-1)
+                        return@onPreviewKeyEvent true
+                    }
+                }
+
+                when {
+                    !showOverlay &&
+                        (event.key == Key.DirectionCenter || event.key == Key.Enter) -> {
+                        bumpOverlayTimer()
+                        true
+                    }
+                    showOverlay && event.key != Key.Back -> {
+                        bumpOverlayTimer()
+                        false
+                    }
+                    else -> false
+                }
+            },
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
                 .focusRequester(videoSurfaceFocus)
-                .focusable()
-                .onPreviewKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                    if (showQualityPicker || channelListOpen) return@onPreviewKeyEvent false
-
-                    event.digitOrNull()?.let { digit ->
-                        if (channelNumberBuffer.length < CHANNEL_NUMBER_MAX_DIGITS) {
-                            channelNumberBuffer += digit
-                            channelNumberInputGeneration++
-                        }
-                        return@onPreviewKeyEvent true
-                    }
-
-                    if (channelNumberBuffer.isNotEmpty()) {
-                        when (event.key) {
-                            Key.Enter, Key.DirectionCenter -> {
-                                applyChannelNumber(channelNumberBuffer)
-                                clearChannelNumberInput()
-                                return@onPreviewKeyEvent true
-                            }
-                            Key.Back -> {
-                                if (channelNumberBuffer.length > 1) {
-                                    channelNumberBuffer = channelNumberBuffer.dropLast(1)
-                                    channelNumberInputGeneration++
-                                } else {
-                                    clearChannelNumberInput()
-                                }
-                                return@onPreviewKeyEvent true
-                            }
-                        }
-                    }
-
-                    when {
-                        !showOverlay &&
-                            (event.key == Key.DirectionCenter || event.key == Key.Enter) -> {
-                            bumpOverlayTimer()
-                            true
-                        }
-                        showOverlay && event.key != Key.Back -> {
-                            bumpOverlayTimer()
-                            false
-                        }
-                        else -> false
-                    }
-                },
+                .focusable(),
         ) {
             val playerKey = remember(
                 playing.id,
@@ -608,6 +631,17 @@ private fun rememberChannelByNumber(channels: List<Channel>): Map<Int, Channel> 
         channels.mapIndexed { index, channel -> (index + 1) to channel }.toMap()
     }
 
+/** @param direction +1 channel berikutnya, -1 channel sebelumnya (wrap). */
+private fun adjacentChannel(channels: List<Channel>, playingId: Int, direction: Int): Channel? {
+    if (channels.isEmpty() || direction == 0) return null
+    val currentIndex = channels.indexOfFirst { it.id == playingId }.let { idx ->
+        if (idx >= 0) idx else 0
+    }
+    val size = channels.size
+    val nextIndex = (currentIndex + direction + size) % size
+    return channels[nextIndex]
+}
+
 private fun KeyEvent.digitOrNull(): Char? {
     val digit = when (key) {
         Key.Zero, Key.NumPad0 -> '0'
@@ -687,7 +721,7 @@ private fun ChannelNumberInputOverlay(
                 }
             }
             Text(
-                text = "OK konfirmasi · ⌫ hapus · 1–$maxChannelNumber",
+                text = "OK konfirmasi · ↑↓ pindah channel · 1–$maxChannelNumber",
                 fontSize = 10.sp,
                 color = TextMuted,
                 modifier = Modifier.padding(top = 10.dp),
