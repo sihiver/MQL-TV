@@ -5,6 +5,7 @@ import { useApiHealth } from "./hooks/useApiHealth";
 import BackendSettingsPage from "./pages/BackendSettingsPage";
 import ChannelsPage from "./pages/ChannelsPage";
 import DashboardPage from "./pages/DashboardPage";
+import EpgMappingPage from "./pages/EpgMappingPage";
 import PackagesPage from "./pages/PackagesPage";
 import SubscriptionsPage from "./pages/SubscriptionsPage";
 import UsersPage from "./pages/UsersPage";
@@ -103,6 +104,7 @@ export default function AdminApp() {
       <main className="admin-main">
         {page === PAGES.DASHBOARD && <DashboardPage apiOnline={apiOnline} />}
         {page === PAGES.CHANNELS && <ChannelsPage />}
+        {page === PAGES.EPG_MAPPING && <EpgMappingPage />}
         {page === PAGES.USERS && <UsersPage />}
         {page === PAGES.PACKAGES && <PackagesPage />}
         {page === PAGES.SUBSCRIPTIONS && <SubscriptionsPage />}

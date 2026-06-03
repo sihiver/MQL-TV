@@ -1,73 +1,12 @@
 import axios from "axios";
 import { db } from "../config/database.js";
-import {
-  asArray,
-  normalizeChannelName,
-  parseXmltv,
-  parseXmltvDateTime,
-} from "./xmltvParser.js";
+import { getEpgSourceUrl } from "./epgConfig.js";
+import { parseXmltv, parseXmltvDateTime } from "./xmltvParser.js";
+import { matchChannelsForSync } from "./epgMapping.js";
 
-const DEFAULT_EPG_URL = "https://epg.pw/xmltv/epg_ID.xml";
 const BATCH_SIZE = 300;
 const DAYS_FORWARD = 8;
 const DAYS_BACK = 1;
-
-export function getEpgSourceUrl() {
-  return process.env.EPG_URL || DEFAULT_EPG_URL;
-}
-
-function buildXmltvIndexes(xmltvChannels) {
-  const byId = new Map();
-  const byName = new Map();
-
-  for (const ch of xmltvChannels) {
-    byId.set(ch.id, ch);
-    for (const name of ch.names) {
-      const key = normalizeChannelName(name);
-      if (key && !byName.has(key)) byName.set(key, ch.id);
-    }
-  }
-
-  return { byId, byName };
-}
-
-async function matchChannels(xmltvChannels) {
-  const { byId, byName } = buildXmltvIndexes(xmltvChannels);
-  const { rows: dbChannels } = await db.query(
-    "SELECT id, name, epg_id FROM channels WHERE active = true",
-  );
-
-  /** @type {Map<string, number[]>} */
-  const mapping = new Map();
-  let updatedEpgIds = 0;
-
-  for (const ch of dbChannels) {
-    let xmltvId = ch.epg_id ? String(ch.epg_id) : null;
-
-    if (xmltvId && !byId.has(xmltvId)) {
-      xmltvId = null;
-    }
-
-    if (!xmltvId) {
-      const key = normalizeChannelName(ch.name);
-      xmltvId = byName.get(key) || null;
-      if (xmltvId && ch.epg_id !== xmltvId) {
-        await db.query("UPDATE channels SET epg_id = $1 WHERE id = $2", [xmltvId, ch.id]);
-        updatedEpgIds += 1;
-      }
-    }
-
-    if (xmltvId) {
-      if (!mapping.has(xmltvId)) mapping.set(xmltvId, []);
-      mapping.get(xmltvId).push(ch.id);
-    }
-  }
-
-  let matchedChannels = 0;
-  for (const ids of mapping.values()) matchedChannels += ids.length;
-
-  return { mapping, matched: matchedChannels, updatedEpgIds };
-}
 
 async function insertProgrammeBatch(rows) {
   if (!rows.length) return;
@@ -104,7 +43,7 @@ export async function syncEpgFromUrl(url = getEpgSourceUrl()) {
   });
 
   const { channels: xmltvChannels, programmes } = await parseXmltv(xml);
-  const { mapping, matched, updatedEpgIds } = await matchChannels(xmltvChannels);
+  const { mapping, matched, updatedEpgIds } = await matchChannelsForSync(xmltvChannels);
 
   const windowStart = new Date();
   windowStart.setDate(windowStart.getDate() - DAYS_BACK);

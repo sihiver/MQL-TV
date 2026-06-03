@@ -211,6 +211,7 @@ router.put("/:id", async (req, res, next) => {
       referer,
       active,
       isLive,
+      epgId,
     } = req.body;
 
     const result = await db.query(
@@ -224,8 +225,9 @@ router.put("/:id", async (req, res, next) => {
          user_agent = COALESCE($7, user_agent),
          referer = COALESCE($8, referer),
          active = COALESCE($9, active),
-         is_live = COALESCE($10, is_live)
-       WHERE id = $11
+         is_live = COALESCE($10, is_live),
+         epg_id = CASE WHEN $11::boolean THEN $12 ELSE epg_id END
+       WHERE id = $13
        RETURNING ${SELECT_FIELDS}`,
       [
         name?.trim()?.slice(0, 255),
@@ -238,6 +240,8 @@ router.put("/:id", async (req, res, next) => {
         referer,
         active !== undefined ? Boolean(active) : null,
         isLive !== undefined ? Boolean(isLive) : null,
+        epgId !== undefined,
+        epgId === null || epgId === "" ? null : String(epgId).trim().slice(0, 100),
         req.params.id,
       ],
     );
