@@ -13,6 +13,9 @@ import favoriteRoutes from "./routes/favorites.js";
 import subscriptionRoutes from "./routes/subscription.js";
 import deviceRoutes from "./routes/devices.js";
 import adminRoutes from "./routes/admin.js";
+import { initServerSettings } from "./services/serverSettings.js";
+import { maintenanceMiddleware } from "./middleware/maintenance.js";
+import { rateLimitMiddleware } from "./middleware/rateLimit.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +36,9 @@ app.get("/health", async (_req, res) => {
     res.status(503).json({ status: "error", database: err.message });
   }
 });
+
+app.use("/api", maintenanceMiddleware);
+app.use("/api", rateLimitMiddleware);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/channels", channelRoutes);
@@ -56,6 +62,10 @@ async function start() {
   try {
     const dbInfo = await testConnection();
     console.log(`✅ PostgreSQL terhubung — db: ${dbInfo.db}`);
+    await initServerSettings();
+    const { getServerSettingsSync } = await import("./services/serverSettings.js");
+    const cfg = getServerSettingsSync();
+    console.log(`⚙️  Rate limit: ${cfg.rateLimit} req/menit · Maks perangkat default: ${cfg.maxDevices}`);
   } catch (err) {
     console.error("❌ PostgreSQL gagal:", err.message);
     process.exit(1);

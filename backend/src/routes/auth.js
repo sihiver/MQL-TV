@@ -4,12 +4,24 @@ import jwt         from "jsonwebtoken";
 import { db }      from "../config/database.js";
 import { redis }   from "../config/redis.js";
 import { authenticate } from "../middleware/auth.js";
+import { getServerSettings } from "../services/serverSettings.js";
+import { parseDurationToSeconds } from "../utils/duration.js";
 
 const router = Router();
+
+async function jwtExpiresIn() {
+  const settings = await getServerSettings();
+  return settings.jwtExpiry || "1d";
+}
 
 // POST /api/auth/register
 router.post("/register", async (req, res, next) => {
   try {
+    const settings = await getServerSettings();
+    if (!settings.allowRegistration) {
+      return res.status(403).json({ error: "Registrasi pengguna baru dinonaktifkan" });
+    }
+
     const { name, email, password } = req.body;
 
     const exists = await db.query(
@@ -26,10 +38,11 @@ router.post("/register", async (req, res, next) => {
     );
 
     const user = result.rows[0];
+    const expiresIn = await jwtExpiresIn();
     const token = jwt.sign(
       { id: user.id, email: user.email, plan: user.plan, role: "user" },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn },
     );
 
     res.status(201).json({ token, user });
@@ -55,24 +68,32 @@ router.post("/login", async (req, res, next) => {
     if (user.banned)
       return res.status(403).json({ error: "Akun ini telah diblokir" });
 
+    const settings = await getServerSettings();
+    if (settings.maintenanceMode && user.role !== "admin") {
+      return res.status(503).json({ error: "Server sedang maintenance" });
+    }
+
+    const expiresIn = await jwtExpiresIn();
     const token = jwt.sign(
       { id: user.id, email: user.email, plan: user.plan, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn },
     );
     const refreshToken = jwt.sign(
       { id: user.id },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "30d" }
+      { expiresIn: "30d" },
     );
 
     // Simpan refresh token di Redis
     await redis.setex(`refresh:${user.id}`, 60 * 60 * 24 * 30, refreshToken);
 
+    const expiresSec = parseDurationToSeconds(expiresIn) || 86400;
+
     res.json({
       token,
       refreshToken,
-      expiresIn: 86400,
+      expiresIn: expiresSec,
       user: {
         id: user.id,
         name: user.name,
@@ -105,15 +126,18 @@ router.post("/admin/login", async (req, res, next) => {
       return res.status(403).json({ error: "Akses ditolak — hanya admin" });
     }
 
+    const expiresIn = await jwtExpiresIn();
     const token = jwt.sign(
       { id: user.id, email: user.email, plan: user.plan, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" },
+      { expiresIn },
     );
+
+    const expiresSec = parseDurationToSeconds(expiresIn) || 86400;
 
     res.json({
       token,
-      expiresIn: 86400,
+      expiresIn: expiresSec,
       user: { id: user.id, name: user.name, email: user.email, plan: user.plan, role: user.role },
     });
   } catch (err) {

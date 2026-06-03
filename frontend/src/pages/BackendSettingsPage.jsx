@@ -1,39 +1,75 @@
 import { useEffect, useState } from "react";
 import { checkHealth } from "../api/client";
 import { fetchEpgStatus, syncEpg } from "../api/epg";
+import { fetchServerSettings, saveServerSettings } from "../api/settings";
 import { CfgCard, CfgField, CfgSelect, CfgToggle } from "../components/config/ConfigFields";
 
+const DEFAULT_CFG = {
+  dbUrl: "—",
+  redisUrl: "—",
+  jwtExpiry: "1d",
+  streamExpiry: "6h",
+  maxDevices: 3,
+  rateLimit: 100,
+  epgSync: "6h",
+  m3uRefresh: "12h",
+  debugMode: false,
+  maintenanceMode: false,
+  allowRegistration: true,
+  requireEmailVerify: false,
+};
+
 export default function BackendSettingsPage() {
-  const [cfg, setCfg] = useState({
-    dbUrl: "postgresql://user:••••@localhost:5432/nusavision",
-    redisUrl: "redis://localhost:6379",
-    jwtExpiry: "1d",
-    streamExpiry: "6h",
-    maxDevices: 3,
-    rateLimit: 100,
-    epgSync: "6h",
-    m3uRefresh: "12h",
-    debugMode: false,
-    maintenanceMode: false,
-    allowRegistration: true,
-    requireEmailVerify: false,
-  });
+  const [cfg, setCfg] = useState(DEFAULT_CFG);
   const set = (k, v) => setCfg((p) => ({ ...p, [k]: v }));
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [dbTest, setDbTest] = useState(null);
   const [epgInfo, setEpgInfo] = useState(null);
   const [epgSyncing, setEpgSyncing] = useState(false);
   const [epgMsg, setEpgMsg] = useState(null);
 
   useEffect(() => {
-    fetchEpgStatus()
-      .then(setEpgInfo)
-      .catch(() => {});
+    Promise.all([
+      fetchServerSettings().catch(() => null),
+      fetchEpgStatus().catch(() => null),
+    ]).then(([settings, epg]) => {
+      if (settings) {
+        setCfg((p) => ({
+          ...p,
+          ...settings,
+          maxDevices: Number(settings.maxDevices) || 3,
+          rateLimit: Number(settings.rateLimit) || 100,
+        }));
+      }
+      if (epg) setEpgInfo(epg);
+      setLoading(false);
+    });
   }, []);
 
-  const save = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const save = async () => {
+    setSaveError(null);
+    try {
+      const payload = {
+        maxDevices: Number(cfg.maxDevices) || 3,
+        rateLimit: Number(cfg.rateLimit) || 100,
+        jwtExpiry: cfg.jwtExpiry,
+        streamExpiry: cfg.streamExpiry,
+        epgSync: cfg.epgSync,
+        m3uRefresh: cfg.m3uRefresh,
+        debugMode: cfg.debugMode,
+        maintenanceMode: cfg.maintenanceMode,
+        allowRegistration: cfg.allowRegistration,
+        requireEmailVerify: cfg.requireEmailVerify,
+      };
+      const updated = await saveServerSettings(payload);
+      setCfg((p) => ({ ...p, ...updated }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setSaveError(e.message || "Gagal menyimpan");
+    }
   };
 
   const testDb = async () => {
@@ -48,6 +84,24 @@ export default function BackendSettingsPage() {
 
   return (
     <div className="admin-page">
+      {loading && (
+        <div style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>Memuat konfigurasi…</div>
+      )}
+      {saveError && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: "10px 14px",
+            background: "rgba(252,129,129,0.1)",
+            border: "1px solid rgba(252,129,129,0.3)",
+            borderRadius: 10,
+            fontSize: 12,
+            color: "#FC8181",
+          }}
+        >
+          {saveError}
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 900 }}>Konfigurasi Backend</div>
@@ -106,8 +160,11 @@ export default function BackendSettingsPage() {
         </CfgCard>
 
         <CfgCard title="⚡ Batas & Rate Limit" color="#68D391">
-          <CfgField label="Maks Perangkat per User" value={cfg.maxDevices} onChange={(v) => set("maxDevices", v)} type="number" />
-          <CfgField label="Rate Limit (req/menit)" value={cfg.rateLimit} onChange={(v) => set("rateLimit", v)} type="number" />
+          <CfgField label="Maks Perangkat per User (default)" value={cfg.maxDevices} onChange={(v) => set("maxDevices", v)} type="number" />
+          <CfgField label="Rate Limit (req/menit per IP)" value={cfg.rateLimit} onChange={(v) => set("rateLimit", v)} type="number" />
+          <div style={{ fontSize: 10, color: "#666", marginTop: 8, lineHeight: 1.5 }}>
+            Aktif di server · Batas perangkat mengikuti paket langganan jika lebih ketat · Admin panel tidak kena rate limit
+          </div>
         </CfgCard>
 
         <CfgCard title="📺 EPG (epg.pw)" color="#F6AD55">

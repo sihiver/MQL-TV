@@ -44,6 +44,24 @@ class MemoryRedis {
     const prefix = pattern.replace("*", "");
     return [...this.store.keys()].filter((k) => k.startsWith(prefix));
   }
+
+  async incr(key) {
+    this._warn();
+    const entry = this.store.get(key);
+    const next = entry ? parseInt(entry.value, 10) + 1 : 1;
+    this.store.set(key, { value: String(next), expiresAt: entry?.expiresAt });
+    return next;
+  }
+
+  async expire(key, seconds) {
+    this._warn();
+    const entry = this.store.get(key);
+    if (entry) {
+      entry.expiresAt = Date.now() + seconds * 1000;
+      this.store.set(key, entry);
+    }
+    return 1;
+  }
 }
 
 function createRedis() {
@@ -88,4 +106,6 @@ export const redis = {
   setex: (key, seconds, value) => useRedis((r) => r.setex(key, seconds, value)),
   del: (...keys) => useRedis((r) => r.del(...keys)),
   keys: (pattern) => useRedis((r) => r.keys(pattern)),
+  incr: (key) => useRedis((r) => r.incr(key)),
+  expire: (key, seconds) => useRedis((r) => r.expire(key, seconds)),
 };

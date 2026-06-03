@@ -7,6 +7,7 @@ import packagesRouter from "./admin/packages.js";
 import channelsRouter from "./admin/channels.js";
 import packageChannelsRouter from "./admin/packageChannels.js";
 import epgAdminRouter from "./admin/epg.js";
+import settingsRouter from "./admin/settings.js";
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.use("/subscriptions", subscriptionsRouter);
 router.use("/packages", packagesRouter);
 router.use("/packages/:packageId/channels", packageChannelsRouter);
 router.use("/epg", epgAdminRouter);
+router.use("/settings", settingsRouter);
 router.use("/channels", channelsRouter);
 
 export default router;
