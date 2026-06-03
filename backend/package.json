@@ -15,6 +15,7 @@
       "db:migrate-package-channels": "node scripts/migrate-004-package-channels.js",
       "db:migrate-epg": "node scripts/migrate-005-epg.js",
       "db:migrate-channel-views": "node scripts/migrate-006-channel-views.js",
+      "db:migrate-payments": "node scripts/migrate-007-payments.js",
       "epg:sync": "node scripts/sync-epg.js",
       "db:fix-stream-urls": "node scripts/fix-stream-urls.js"
     },

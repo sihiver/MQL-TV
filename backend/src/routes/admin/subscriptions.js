@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db } from "../../config/database.js";
+import { recordSubscriptionPayment } from "../../services/subscriptionPayments.js";
 
 const router = Router();
 
@@ -132,7 +133,18 @@ router.post("/", async (req, res, next) => {
     );
 
     const row = await db.query(`${SELECT_JOIN} WHERE s.id = $1`, [result.rows[0].id]);
-    res.status(201).json(mapSubscription(row.rows[0]));
+    const mapped = mapSubscription(row.rows[0]);
+
+    await recordSubscriptionPayment(db, {
+      userId,
+      subscriptionId: mapped.id,
+      plan: pkg.slug,
+      amount: pkg.price ?? 0,
+      paymentType: "new",
+      method: req.body.method || "manual",
+    });
+
+    res.status(201).json(mapped);
   } catch (err) {
     next(err);
   }
@@ -186,12 +198,17 @@ router.patch("/:id/renew", async (req, res, next) => {
     const months = req.body.months ?? 1;
     const days = months * 30;
 
-    const current = await db.query("SELECT expires_at, status FROM subscriptions WHERE id = $1", [
-      req.params.id,
-    ]);
+    const current = await db.query(
+      `SELECT s.expires_at, s.status, s.user_id, s.plan, p.price AS package_price
+       FROM subscriptions s
+       LEFT JOIN packages p ON p.slug = LOWER(s.plan)
+       WHERE s.id = $1`,
+      [req.params.id],
+    );
     if (!current.rows.length) return res.status(404).json({ error: "Subscription tidak ditemukan" });
 
-    const base = new Date(current.rows[0].expires_at);
+    const sub = current.rows[0];
+    const base = new Date(sub.expires_at);
     const from = base > new Date() ? base : new Date();
     from.setDate(from.getDate() + days);
 
@@ -201,7 +218,19 @@ router.patch("/:id/renew", async (req, res, next) => {
     );
 
     const row = await db.query(`${SELECT_JOIN} WHERE s.id = $1`, [result.rows[0].id]);
-    res.json(mapSubscription(row.rows[0]));
+    const mapped = mapSubscription(row.rows[0]);
+
+    await recordSubscriptionPayment(db, {
+      userId: sub.user_id,
+      subscriptionId: mapped.id,
+      plan: sub.plan,
+      amount: (sub.package_price ?? 0) * months,
+      paymentType: "renew",
+      method: req.body.method || "manual",
+      notes: months > 1 ? `Perpanjang ${months} bulan` : null,
+    });
+
+    res.json(mapped);
   } catch (err) {
     next(err);
   }

@@ -39,7 +39,9 @@ export async function getDashboardStats() {
     totals,
     newUsersToday,
     activeStreams,
-    revenueMonth,
+    revenueMrr,
+    revenueThisMonth,
+    revenueLastMonth,
     activeDevices,
     usersByMonth,
     viewsByDay,
@@ -71,6 +73,18 @@ export async function getDashboardStats() {
       WHERE s.status = 'active' AND s.expires_at > NOW()
     `),
     db.query(`
+      SELECT COALESCE(SUM(amount), 0)::bigint AS total
+      FROM subscription_payments
+      WHERE paid_at >= date_trunc('month', NOW())
+        AND paid_at < date_trunc('month', NOW()) + INTERVAL '1 month'
+    `),
+    db.query(`
+      SELECT COALESCE(SUM(amount), 0)::bigint AS total
+      FROM subscription_payments
+      WHERE paid_at >= date_trunc('month', NOW()) - INTERVAL '1 month'
+        AND paid_at < date_trunc('month', NOW())
+    `),
+    db.query(`
       SELECT COUNT(*)::int AS c FROM devices
       WHERE last_seen_at > NOW() - INTERVAL '24 hours'
     `),
@@ -97,11 +111,10 @@ export async function getDashboardStats() {
       GROUP BY 1 ORDER BY 1
     `),
     db.query(`
-      SELECT to_char(date_trunc('month', s.started_at), 'YYYY-MM') AS bucket,
-             COALESCE(SUM(p.price), 0)::int AS value
-      FROM subscriptions s
-      LEFT JOIN packages p ON p.slug = LOWER(s.plan)
-      WHERE s.started_at >= date_trunc('month', NOW()) - INTERVAL '11 months'
+      SELECT to_char(date_trunc('month', paid_at), 'YYYY-MM') AS bucket,
+             COALESCE(SUM(amount), 0)::int AS value
+      FROM subscription_payments
+      WHERE paid_at >= date_trunc('month', NOW()) - INTERVAL '11 months'
       GROUP BY 1 ORDER BY 1
     `),
     db.query(`
@@ -121,13 +134,13 @@ export async function getDashboardStats() {
   ]);
 
   const t = totals.rows[0];
-  const revMrr = Number(revenueMonth.rows[0]?.total || 0);
+  const mrr = Number(revenueMrr.rows[0]?.total || 0);
+  const revThisMonth = Number(revenueThisMonth.rows[0]?.total || 0);
+  const revLastMonth = Number(revenueLastMonth.rows[0]?.total || 0);
   const revenueSeries = fillSeries(revenueByMonth.rows);
-  const revThisMonth = revenueSeries[revenueSeries.length - 1] ?? 0;
-  const revPrevMonth = revenueSeries[revenueSeries.length - 2] ?? 0;
   let revenueChangePercent = null;
-  if (revPrevMonth > 0) {
-    revenueChangePercent = Math.round(((revThisMonth - revPrevMonth) / revPrevMonth) * 100);
+  if (revLastMonth > 0) {
+    revenueChangePercent = Math.round(((revThisMonth - revLastMonth) / revLastMonth) * 100);
   } else if (revThisMonth > 0) {
     revenueChangePercent = 100;
   }
@@ -145,7 +158,8 @@ export async function getDashboardStats() {
       channelEntries: t.channel_entries ?? 0,
       liveChannels: t.live_channels ?? 0,
       activeSubscriptions: t.active_subscriptions ?? 0,
-      revenueMonth: revMrr,
+      revenueMonth: revThisMonth,
+      mrr,
       revenueChangePercent,
       activeDevices: activeDevices.rows[0]?.c ?? 0,
       uptime: formatUptime(uptimeSec),
@@ -159,7 +173,8 @@ export async function getDashboardStats() {
     },
     revenue: {
       yearLabel: new Date().getFullYear().toString(),
-      monthTotal: revMrr,
+      monthTotal: revThisMonth,
+      mrr,
     },
     watchingNow: watchingNow.rows.map((row) => ({
       user: row.user_name,

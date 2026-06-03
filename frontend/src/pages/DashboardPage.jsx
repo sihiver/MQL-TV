@@ -14,6 +14,7 @@ const EMPTY_STATS = {
     channelEntries: 0,
     liveChannels: 0,
     revenueMonth: 0,
+    mrr: 0,
     revenueChangePercent: null,
     activeDevices: 0,
     uptime: "—",
@@ -30,10 +31,16 @@ function formatRevenue(n) {
   return `Rp ${n}`;
 }
 
-function revenueSubLabel(changePercent) {
-  if (changePercent == null) return "MRR langganan aktif";
-  const sign = changePercent >= 0 ? "+" : "";
-  return `${sign}${changePercent}% langganan baru vs bulan lalu`;
+function revenueSubLabel(changePercent, mrr) {
+  const parts = [];
+  if (changePercent != null) {
+    const sign = changePercent >= 0 ? "+" : "";
+    parts.push(`${sign}${changePercent}% vs bulan lalu`);
+  }
+  if (mrr != null && mrr > 0) {
+    parts.push(`MRR ${formatRevenue(mrr)}`);
+  }
+  return parts.length ? parts.join(" · ") : "Pembayaran tercatat bulan ini";
 }
 
 export default function DashboardPage({ apiOnline }) {
@@ -101,7 +108,7 @@ export default function DashboardPage({ apiOnline }) {
     {
       label: "Revenue Bulan Ini",
       value: formatRevenue(s.revenueMonth),
-      sub: revenueSubLabel(s.revenueChangePercent),
+      sub: revenueSubLabel(s.revenueChangePercent, s.mrr),
       icon: "💰",
       color: "#F6AD55",
       chart: charts.revenue?.length ? charts.revenue : [0],
@@ -111,8 +118,8 @@ export default function DashboardPage({ apiOnline }) {
   const revenueChart = charts.revenue?.length ? charts.revenue : [0];
   const yoyBadge =
     s.revenueChangePercent != null
-      ? `${s.revenueChangePercent >= 0 ? "+" : ""}${s.revenueChangePercent}% MRR`
-      : "MRR";
+      ? `${s.revenueChangePercent >= 0 ? "+" : ""}${s.revenueChangePercent}%`
+      : "Bulan ini";
 
   return (
     <div className="admin-page">
@@ -214,7 +221,10 @@ export default function DashboardPage({ apiOnline }) {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 800 }}>Revenue {d.revenue?.yearLabel || new Date().getFullYear()}</div>
                   <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-                    MRR aktif: {formatRevenue(d.revenue?.monthTotal ?? s.revenueMonth)}
+                    Bulan ini: {formatRevenue(d.revenue?.monthTotal ?? s.revenueMonth)}
+                    {(d.revenue?.mrr ?? s.mrr) > 0 && (
+                      <> · MRR {formatRevenue(d.revenue?.mrr ?? s.mrr)}</>
+                    )}
                   </div>
                 </div>
                 <Badge
