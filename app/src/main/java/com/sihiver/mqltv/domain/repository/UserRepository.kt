@@ -24,4 +24,6 @@ interface UserRepository {
     suspend fun logout()
     suspend fun getProfile(): UserProfile?
     suspend fun checkSubscription(): SubscriptionStatus
+    /** Kirim heartbeat perangkat ke server (dashboard Perangkat Aktif). */
+    suspend fun refreshDevicePresence()
 }

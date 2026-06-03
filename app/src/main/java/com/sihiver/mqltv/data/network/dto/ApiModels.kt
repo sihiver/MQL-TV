@@ -35,6 +35,12 @@ data class SubscriptionResponse(
     @SerializedName("channel_count") val channelCount: Int? = null,
 )
 
+data class RegisterDeviceRequest(
+    @SerializedName("device_key") val deviceKey: String,
+    val name: String,
+    val type: String,
+)
+
 data class ChannelsResponse(
     val data: List<ChannelDto>,
     val total: Int,

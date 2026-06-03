@@ -1,9 +1,12 @@
 package com.sihiver.mqltv.data.repository
 
+import com.sihiver.mqltv.data.datastore.SettingsPreferences
+import com.sihiver.mqltv.data.device.DeviceRegistry
 import com.sihiver.mqltv.data.datastore.UserPreferences
 import com.sihiver.mqltv.data.network.ApiService
 import com.sihiver.mqltv.data.network.AuthTokenStore
 import com.sihiver.mqltv.data.network.dto.LoginRequest
+import com.sihiver.mqltv.data.network.dto.RegisterDeviceRequest
 import com.sihiver.mqltv.data.network.toProfile
 import com.sihiver.mqltv.data.network.toStatus
 import com.sihiver.mqltv.domain.model.UserProfile
@@ -11,6 +14,7 @@ import com.sihiver.mqltv.domain.repository.AuthResult
 import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import com.sihiver.mqltv.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,6 +24,8 @@ class UserRepositoryImpl @Inject constructor(
     private val api: ApiService,
     private val userPreferences: UserPreferences,
     private val tokenStore: AuthTokenStore,
+    private val deviceRegistry: DeviceRegistry,
+    private val settingsPreferences: SettingsPreferences,
 ) : UserRepository {
 
     override val authToken: Flow<String?> = userPreferences.authToken
@@ -33,6 +39,7 @@ class UserRepositoryImpl @Inject constructor(
             expiresLabel = sub?.expiresAt ?: "—",
             daysRemaining = sub?.daysRemaining ?: 0,
         )
+        refreshDevicePresence()
         return AuthResult(token = response.token, profile = profile)
     }
 
@@ -70,6 +77,7 @@ class UserRepositoryImpl @Inject constructor(
         tokenStore.set(saved)
         return runCatching {
             api.me()
+            refreshDevicePresence()
             true
         }.getOrElse {
             if (it is HttpException && it.code() == 401) {
@@ -77,6 +85,20 @@ class UserRepositoryImpl @Inject constructor(
                 userPreferences.setToken(null)
             }
             false
+        }
+    }
+
+    override suspend fun refreshDevicePresence() {
+        if (tokenStore.token == null) return
+        runCatching {
+            val settings = settingsPreferences.settings.first()
+            api.registerDevice(
+                RegisterDeviceRequest(
+                    deviceKey = deviceRegistry.deviceKey(),
+                    name = deviceRegistry.defaultName(settings.deviceName),
+                    type = deviceRegistry.deviceType(),
+                ),
+            )
         }
     }
 }

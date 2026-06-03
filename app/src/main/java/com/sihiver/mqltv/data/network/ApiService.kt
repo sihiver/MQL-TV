@@ -9,6 +9,7 @@ import com.sihiver.mqltv.data.network.dto.LoginRequest
 import com.sihiver.mqltv.data.network.dto.LoginResponse
 import com.sihiver.mqltv.data.network.dto.MeResponse
 import com.sihiver.mqltv.data.network.dto.SearchChannelsResponse
+import com.sihiver.mqltv.data.network.dto.RegisterDeviceRequest
 import com.sihiver.mqltv.data.network.dto.StreamQualitiesResponse
 import com.sihiver.mqltv.data.network.dto.StreamResponse
 import com.sihiver.mqltv.data.network.dto.SubscriptionResponse
@@ -72,4 +73,7 @@ interface ApiService {
 
     @DELETE("api/favorites/{channelId}")
     suspend fun removeFavorite(@Path("channelId") channelId: Int)
+
+    @POST("api/devices/register")
+    suspend fun registerDevice(@Body body: RegisterDeviceRequest)
 }
