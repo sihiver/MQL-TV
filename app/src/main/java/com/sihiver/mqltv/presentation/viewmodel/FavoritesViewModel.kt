@@ -19,7 +19,7 @@ import javax.inject.Inject
 data class FavoritesUiState(
     val favorites: List<Int> = emptyList(),
     val channels: List<Channel> = emptyList(),
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
 )
 
 @HiltViewModel
@@ -31,6 +31,8 @@ class FavoritesViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(FavoritesUiState())
     val state: StateFlow<FavoritesUiState> = _state.asStateFlow()
+
+    private var lastApiSyncMs = 0L
 
     init {
         viewModelScope.launch {
@@ -53,16 +55,26 @@ class FavoritesViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            runCatching { favoriteRepository.syncFromApi() }
-            refreshFromLocal()
+            syncFromApiIfStale(force = true)
         }
     }
 
-    fun refresh() {
+    /** Tampilkan data lokal dulu; sync API hanya jika sudah lama (bukan tiap buka layar). */
+    fun onScreenVisible() {
         viewModelScope.launch {
-            runCatching { favoriteRepository.syncFromApi() }
             refreshFromLocal()
         }
+        viewModelScope.launch {
+            syncFromApiIfStale(force = false)
+        }
+    }
+
+    private suspend fun syncFromApiIfStale(force: Boolean) {
+        val now = System.currentTimeMillis()
+        if (!force && now - lastApiSyncMs < API_SYNC_COOLDOWN_MS) return
+        lastApiSyncMs = now
+        runCatching { favoriteRepository.syncFromApi() }
+        refreshFromLocal()
     }
 
     private suspend fun refreshFromLocal() {
@@ -89,5 +101,9 @@ class FavoritesViewModel @Inject constructor(
             manageFavorite.remove(channelId)
             onRemoved("Channel dihapus dari favorit")
         }
+    }
+
+    private companion object {
+        const val API_SYNC_COOLDOWN_MS = 5 * 60 * 1000L
     }
 }

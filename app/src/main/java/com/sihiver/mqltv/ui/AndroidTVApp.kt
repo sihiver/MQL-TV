@@ -126,7 +126,6 @@ fun AndroidTVApp(
         if (loginState.isLoggedIn) {
             settingsViewModel.refreshSubscription()
             homeViewModel.refreshFavorites()
-            channelViewModel.refreshChannels()
         }
     }
 
@@ -147,10 +146,7 @@ fun AndroidTVApp(
     LaunchedEffect(navState.currentScreen) {
         when (navState.currentScreen) {
             AppScreen.SETTINGS -> settingsViewModel.refreshAccountData()
-            AppScreen.FAVORITES -> {
-                favoritesViewModel.refresh()
-                channelViewModel.refreshChannels()
-            }
+            AppScreen.FAVORITES -> favoritesViewModel.onScreenVisible()
             else -> Unit
         }
     }

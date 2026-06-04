@@ -139,7 +139,6 @@ class HomeViewModel @Inject constructor(
 
     fun refreshFavorites() {
         viewModelScope.launch {
-            runCatching { favoriteRepository.syncFromApi() }
             refreshFavoritesFromLocal()
         }
     }

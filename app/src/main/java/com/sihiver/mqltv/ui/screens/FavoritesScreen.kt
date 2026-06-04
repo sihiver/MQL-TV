@@ -14,9 +14,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,6 +44,7 @@ import com.sihiver.mqltv.data.FavoritesSort
 import com.sihiver.mqltv.data.FavoritesViewMode
 import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import com.sihiver.mqltv.ui.components.CategoryPills
+import com.sihiver.mqltv.ui.components.ChannelCard
 import com.sihiver.mqltv.ui.components.ChannelLogoBox
 import com.sihiver.mqltv.ui.components.ChannelLogoContent
 import com.sihiver.mqltv.ui.components.LiveBadge
@@ -173,66 +178,84 @@ fun FavoritesScreen(
                 }
 
                 Row(modifier = Modifier.weight(1f)) {
-                    // Main area
-                    Column(
+                    Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
-                            .verticalScroll(rememberScrollState())
-                            .padding(start = 32.dp, end = 24.dp, top = 20.dp, bottom = 24.dp),
+                            .fillMaxHeight(),
                     ) {
                         when {
                             isLoadingChannels -> {
                                 Box(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 80.dp),
+                                    modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text("Memuat favorit…", color = TextMuted, fontSize = 14.sp)
                                 }
                             }
-                            favChannels.isEmpty() -> EmptyFavorites(
-                                hasSearch = search.isNotEmpty(),
-                                hasFavorites = favorites.isNotEmpty(),
-                            )
+                            favChannels.isEmpty() -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    EmptyFavorites(
+                                        hasSearch = search.isNotEmpty(),
+                                        hasFavorites = favorites.isNotEmpty(),
+                                    )
+                                }
+                            }
                             mode == FavoritesViewMode.GRID -> {
-                                favChannels.chunked(3).forEach { row ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                                    ) {
-                                        row.forEach { ch ->
-                                            FavGridCard(
-                                                channel = ch,
-                                                onOpen = { onOpenPlayer(ch) },
-                                                onRemove = {
-                                                    onRemoveFavorite(ch.id)
-                                                    notification = "${ch.name} dihapus dari favorit"
-                                                },
-                                                modifier = Modifier.weight(1f),
-                                            )
-                                        }
-                                        repeat(3 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                                LazyVerticalGrid(
+                                    columns = GridCells.FixedSize(162.dp),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(
+                                        start = 32.dp,
+                                        end = 24.dp,
+                                        top = 20.dp,
+                                        bottom = 24.dp,
+                                    ),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    items(favChannels, key = { it.id }) { ch ->
+                                        ChannelCard(
+                                            channel = ch,
+                                            isFavorite = true,
+                                            onClick = { onOpenPlayer(ch) },
+                                            onToggleFav = {
+                                                onRemoveFavorite(ch.id)
+                                                notification = "${ch.name} dihapus dari favorit"
+                                            },
+                                        )
                                     }
                                 }
                             }
                             else -> {
-                                favChannels.forEachIndexed { index, ch ->
-                                    FavListItem(
-                                        index = index + 1,
-                                        channel = ch,
-                                        onOpen = { onOpenPlayer(ch) },
-                                        onRemove = {
-                                            onRemoveFavorite(ch.id)
-                                            notification = "${ch.name} dihapus dari favorit"
-                                        },
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(
+                                        start = 32.dp,
+                                        end = 24.dp,
+                                        top = 20.dp,
+                                        bottom = 24.dp,
+                                    ),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    items(favChannels, key = { it.id }) { ch ->
+                                        FavListItem(
+                                            index = favChannels.indexOf(ch) + 1,
+                                            channel = ch,
+                                            onOpen = { onOpenPlayer(ch) },
+                                            onRemove = {
+                                                onRemoveFavorite(ch.id)
+                                                notification = "${ch.name} dihapus dari favorit"
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // Right panel — tambah channel
                     AddChannelPanel(
                         channels = nonFavChannels,
                         onAdd = { id ->
@@ -330,71 +353,6 @@ private fun EmptyFavorites(hasSearch: Boolean, hasFavorites: Boolean = false) {
 }
 
 @Composable
-private fun FavGridCard(
-    channel: Channel,
-    onOpen: () -> Unit,
-    onRemove: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    TvFocusableBox(
-        onClick = onOpen,
-        modifier = modifier,
-        accentColor = channel.color,
-        shape = RoundedCornerShape(16.dp),
-        backgroundColor = Color(0x0AFFFFFF),
-        focusedBackgroundColor = channel.color.copy(alpha = 0.12f),
-        unfocusedBorderWidth = 2.dp,
-    ) { isFocused ->
-        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
-            TvFocusableBox(
-                onClick = onRemove,
-                accentColor = Color(0xFFFC8181),
-                shape = RoundedCornerShape(6.dp),
-                backgroundColor = if (isFocused) Color(0x26FC8181) else Color.Transparent,
-                unfocusedBorderWidth = 0.dp,
-                focusedScale = 1.1f,
-                modifier = Modifier.align(Alignment.TopEnd),
-            ) {
-                Text(
-                    text = "✕",
-                    fontSize = 16.sp,
-                    color = if (isFocused) Color(0xFFFC8181) else Color(0xFF555555),
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                )
-            }
-            Text(
-                text = "⠿",
-                fontSize = 14.sp,
-                color = Color(0xFF444444),
-                modifier = Modifier.align(Alignment.TopStart),
-            )
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                ChannelLogoBox(channel = channel, size = 56, fontSize = 28)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = channel.name, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                    Text(text = channel.category, fontSize = 11.sp, color = TextMuted, modifier = Modifier.padding(top = 2.dp))
-                }
-                Text(
-                    text = channel.program.let { if (it.length > 28) it.take(28) + "…" else it },
-                    fontSize = 10.sp,
-                    color = TextDim,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 14.sp,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    LiveBadge(live = channel.live)
-                    Text(text = channel.viewers, fontSize = 10.sp, color = TextDim)
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun FavListItem(
     index: Int,
     channel: Channel,
@@ -474,21 +432,17 @@ private fun AddChannelPanel(
             )
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-        ) {
-            if (channels.isEmpty()) {
-                Text(
-                    text = "Semua channel sudah difavoritkan ✓",
-                    fontSize = 12.sp,
-                    color = TextMuted,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 40.dp),
-                    textAlign = TextAlign.Center,
-                )
-            } else {
-                channels.forEach { ch ->
+        if (channels.isEmpty()) {
+            Text(
+                text = "Semua channel sudah difavoritkan ✓",
+                fontSize = 12.sp,
+                color = TextMuted,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 40.dp),
+                textAlign = TextAlign.Center,
+            )
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(channels, key = { it.id }) { ch ->
                     TvFocusableBox(
                         onClick = { onAdd(ch.id) },
                         modifier = Modifier.fillMaxWidth(),
