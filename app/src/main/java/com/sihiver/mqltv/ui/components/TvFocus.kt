@@ -108,7 +108,8 @@ fun TvFocusableBox(
                 .background(if (isFocused) focusedBackgroundColor else backgroundColor)
                 .onKeyEvent {
                     when {
-                        it.key == Key.Back -> true
+                        // Biarkan Back diteruskan ke BackHandler / parent (mis. tutup panel)
+                        it.key == Key.Back -> false
                         (it.key == Key.DirectionCenter || it.key == Key.Enter) -> {
                             if (it.type == KeyEventType.KeyUp) {
                                 onClick()

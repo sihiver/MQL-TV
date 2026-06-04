@@ -172,6 +172,11 @@ fun PlayerScreen(
         )
     }
 
+    BackHandler(enabled = channelListPanelVisible) {
+        channelListPanelVisible = false
+        onCloseChannelList()
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         videoArea(Modifier.fillMaxSize())
 
@@ -1113,7 +1118,15 @@ private fun ChannelListPanel(
             .width(300.dp)
             .fillMaxHeight()
             .background(SidebarBg)
-            .border(width = 1.dp, color = Color(0x0FFFFFFF)),
+            .border(width = 1.dp, color = Color(0x0FFFFFFF))
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.Back && onClose != null) {
+                    onClose()
+                    true
+                } else {
+                    false
+                }
+            },
     ) {
         Row(
             modifier = Modifier
@@ -1178,6 +1191,14 @@ private fun ChannelListPanel(
                         }
                         Key.DirectionRight -> {
                             if (dismissOnRight && onClose != null) {
+                                onClose()
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        Key.Back -> {
+                            if (onClose != null) {
                                 onClose()
                                 true
                             } else {
