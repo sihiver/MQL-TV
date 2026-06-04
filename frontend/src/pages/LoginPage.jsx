@@ -27,8 +27,8 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <span className="login-brand-nusa">NUSA</span>
-          <span className="login-brand-vision">VISION</span>
+          <span className="login-brand-nusa">MQL</span>
+          <span className="login-brand-vision">TV</span>
           <div className="login-brand-sub">ADMIN PANEL</div>
         </div>
 
@@ -77,12 +77,6 @@ export default function LoginPage() {
             {loading ? "Memuat…" : "Masuk"}
           </button>
         </form>
-
-        <p className="login-hint">
-          Demo: <code>admin@nusavision.id</code> / <code>admin123</code>
-          <br />
-          API: <code>{API_BASE}</code>
-        </p>
       </div>
     </div>
   );
