@@ -4,7 +4,6 @@ import com.sihiver.mqltv.data.local.dao.FavoriteDao
 import com.sihiver.mqltv.data.local.entity.FavoriteEntity
 import com.sihiver.mqltv.data.network.ApiService
 import com.sihiver.mqltv.data.network.AuthTokenStore
-import com.sihiver.mqltv.data.network.toChannel
 import com.sihiver.mqltv.domain.model.Channel
 import com.sihiver.mqltv.domain.repository.ChannelRepository
 import com.sihiver.mqltv.domain.repository.FavoriteRepository
@@ -61,14 +60,12 @@ class FavoriteRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getFavoriteChannels(): List<Channel> {
-        if (tokenStore.token != null) {
-            runCatching {
-                val fromApi = api.getFavorites().data.mapNotNull { it.toChannel() }
-                if (fromApi.isNotEmpty()) return fromApi
-            }
-        }
-        val ids = favoriteDao.getIds().toSet()
-        return channelRepository.getAllChannels().filter { ids.contains(it.id) }
+        val ids = favoriteDao.getIds()
+        if (ids.isEmpty()) return emptyList()
+        val order = ids.withIndex().associate { it.value to it.index }
+        return channelRepository.getAllChannels()
+            .filter { order.containsKey(it.id) }
+            .sortedBy { order[it.id] ?: Int.MAX_VALUE }
     }
 
     suspend fun seedDefaults(ids: List<Int>) {
