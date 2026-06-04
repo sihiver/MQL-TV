@@ -161,16 +161,6 @@ fun ChannelCard(
         focusedScale = 1f,
         bringIntoViewOnFocus = false,
     ) {
-        if (onToggleFav != null) {
-            Text(
-                text = if (isFavorite) "⭐" else "☆",
-                fontSize = 14.sp,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp),
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -195,15 +185,13 @@ fun ChannelCard(
                 color = Color.White,
                 textAlign = TextAlign.Center,
             )
-            Text(
-                text = channel.program.let {
-                    if (it.length > 22) it.take(22) + "…" else it
-                },
-                fontSize = 10.sp,
-                color = TextMuted,
-                textAlign = TextAlign.Center,
-                lineHeight = 13.sp,
-            )
+            if (isFavorite || onToggleFav != null) {
+                Text(
+                    text = if (isFavorite) "⭐" else "☆",
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(vertical = 2.dp),
+                )
+            }
             LiveBadge(live = channel.live)
         }
     }
