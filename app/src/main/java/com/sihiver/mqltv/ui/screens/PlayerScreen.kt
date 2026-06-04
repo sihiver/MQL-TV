@@ -276,11 +276,6 @@ private fun VideoArea(
         overlayHideGeneration++
     }
 
-    fun dismissOverlay() {
-        showOverlay = false
-        videoSurfaceFocus.requestFocus()
-    }
-
     fun applyChannelNumber(buffer: String) {
         val number = buffer.toIntOrNull() ?: return
         val target = channelByNumber[number] ?: return
@@ -338,8 +333,7 @@ private fun VideoArea(
         when {
             showQualityPicker -> onCloseQualityPicker()
             channelListOpen -> onCloseChannelList()
-            overlayVisible -> dismissOverlay()
-            else -> onBack()
+            else -> onBack() // Back selalu keluar player, tidak menutup overlay
         }
     }
 
@@ -385,16 +379,6 @@ private fun VideoArea(
                     Key.DirectionUp, Key.ChannelDown -> {
                         switchToAdjacentChannel(-1)
                         return@onPreviewKeyEvent true
-                    }
-                }
-
-                if (event.key == Key.Back) {
-                    when {
-                        overlayVisible -> {
-                            dismissOverlay()
-                            return@onPreviewKeyEvent true
-                        }
-                        else -> return@onPreviewKeyEvent false
                     }
                 }
 
@@ -509,7 +493,7 @@ private fun VideoArea(
             ) {
             Column {
                 TvFocusableBox(
-                    onClick = { dismissOverlay() },
+                    onClick = onBack,
                     accentColor = AccentOrange,
                     shape = RoundedCornerShape(10.dp),
                     backgroundColor = Color(0x1AFFFFFF),
