@@ -1,5 +1,6 @@
 package com.sihiver.mqltv.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -140,6 +141,10 @@ fun PlayerScreen(
             isPlaying = isPlaying,
             isMuted = isMuted,
             channelListOpen = channelListPanelVisible,
+            onCloseChannelList = {
+                channelListPanelVisible = false
+                onCloseChannelList()
+            },
             selectedQualityLabel = selectedQualityLabel,
             selectedQualityHeight = selectedQualityHeight,
             showQualityPicker = showQualityPicker,
@@ -202,6 +207,7 @@ private fun VideoArea(
     isPlaying: Boolean,
     isMuted: Boolean,
     channelListOpen: Boolean,
+    onCloseChannelList: () -> Unit,
     selectedQualityLabel: String,
     selectedQualityHeight: Int? = null,
     showQualityPicker: Boolean,
@@ -265,6 +271,11 @@ private fun VideoArea(
         overlayHideGeneration++
     }
 
+    fun dismissOverlay() {
+        showOverlay = false
+        videoSurfaceFocus.requestFocus()
+    }
+
     fun applyChannelNumber(buffer: String) {
         val number = buffer.toIntOrNull() ?: return
         val target = channelByNumber[number] ?: return
@@ -318,6 +329,15 @@ private fun VideoArea(
 
     val overlayVisible = showOverlay && !channelListOpen
 
+    BackHandler {
+        when {
+            showQualityPicker -> onCloseQualityPicker()
+            channelListOpen -> onCloseChannelList()
+            overlayVisible -> dismissOverlay()
+            else -> onBack()
+        }
+    }
+
     Box(
         modifier = modifier
             .background(Color.Black)
@@ -363,13 +383,23 @@ private fun VideoArea(
                     }
                 }
 
+                if (event.key == Key.Back) {
+                    when {
+                        overlayVisible -> {
+                            dismissOverlay()
+                            return@onPreviewKeyEvent true
+                        }
+                        else -> return@onPreviewKeyEvent false
+                    }
+                }
+
                 when {
                     !showOverlay &&
                         (event.key == Key.DirectionCenter || event.key == Key.Enter) -> {
                         bumpOverlayTimer()
                         true
                     }
-                    showOverlay && event.key != Key.Back -> {
+                    showOverlay -> {
                         bumpOverlayTimer()
                         false
                     }
@@ -474,10 +504,7 @@ private fun VideoArea(
             ) {
             Column {
                 TvFocusableBox(
-                    onClick = {
-                        bumpOverlayTimer()
-                        onBack()
-                    },
+                    onClick = { dismissOverlay() },
                     accentColor = AccentOrange,
                     shape = RoundedCornerShape(10.dp),
                     backgroundColor = Color(0x1AFFFFFF),

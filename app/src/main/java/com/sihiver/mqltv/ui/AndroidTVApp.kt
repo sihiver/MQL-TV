@@ -1,6 +1,5 @@
 package com.sihiver.mqltv.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -111,14 +110,6 @@ fun AndroidTVApp(
         val channel = navState.playingChannel ?: return@LaunchedEffect
         if (playerState.playingChannel?.id != channel.id) {
             playerViewModel.loadChannel(channel)
-        }
-    }
-
-    BackHandler(enabled = navState.currentScreen == AppScreen.PLAYER) {
-        when {
-            playerState.showQualityPicker -> playerViewModel.closeQualityPicker()
-            playerState.showChannelList -> playerViewModel.setShowChannelList(false)
-            else -> navViewModel.closePlayer()
         }
     }
 
