@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { redis } from "../config/redis.js";
+import { isUserBanned } from "../services/userBan.js";
 
 export const authenticate = async (req, res, next) => {
   const header = req.headers.authorization;
@@ -15,10 +16,15 @@ export const authenticate = async (req, res, next) => {
 
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
   } catch {
-    res.status(401).json({ error: "Token tidak valid atau sudah kadaluarsa" });
+    return res.status(401).json({ error: "Token tidak valid atau sudah kadaluarsa" });
   }
+
+  if (await isUserBanned(req.user.id)) {
+    return res.status(403).json({ error: "Akun ini telah diblokir" });
+  }
+
+  next();
 };
 
 export const isAdmin = (req, res, next) => {

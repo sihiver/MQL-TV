@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../../config/database.js";
+import { applyUserBanState } from "../../services/userBan.js";
 
 const router = Router();
 
@@ -149,7 +150,11 @@ router.put("/:id", async (req, res, next) => {
     );
 
     const devices = await db.query("SELECT COUNT(*)::int AS c FROM devices WHERE user_id = $1", [id]);
-    res.json(mapUser({ ...result.rows[0], devices: devices.rows[0].c }));
+    const user = mapUser({ ...result.rows[0], devices: devices.rows[0].c });
+    if (typeof banned === "boolean") {
+      await applyUserBanState(id, banned);
+    }
+    res.json(user);
   } catch (err) {
     next(err);
   }
@@ -165,6 +170,8 @@ router.patch("/:id/ban", async (req, res, next) => {
       [banned, req.params.id],
     );
     if (!result.rows.length) return res.status(404).json({ error: "User tidak ditemukan" });
+
+    await applyUserBanState(req.params.id, banned);
 
     const devices = await db.query("SELECT COUNT(*)::int AS c FROM devices WHERE user_id = $1", [
       req.params.id,
