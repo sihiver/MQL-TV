@@ -38,6 +38,9 @@ import com.sihiver.mqltv.ui.screens.LoginScreen
 import com.sihiver.mqltv.ui.screens.PlayerScreen
 import com.sihiver.mqltv.ui.screens.SearchScreen
 import com.sihiver.mqltv.ui.screens.SettingsScreen
+import androidx.compose.runtime.CompositionLocalProvider
+import com.sihiver.mqltv.ui.theme.LocalClockFormat
+import com.sihiver.mqltv.ui.theme.LocalPlaybackSettings
 import kotlinx.coroutines.delay
 
 @Composable
@@ -125,6 +128,26 @@ fun AndroidTVApp(
         }
     }
 
+    LaunchedEffect(settingsState.settings.autoplay, playerState.playingChannel?.id) {
+        if (playerState.playingChannel != null && !settingsState.settings.autoplay) {
+            playerViewModel.setPlaying(false)
+        }
+    }
+
+    LaunchedEffect(settingsState.message) {
+        settingsState.message?.let { msg ->
+            navViewModel.showToast(msg)
+            delay(2500)
+            settingsViewModel.clearMessage()
+        }
+    }
+
+    LaunchedEffect(navState.currentScreen) {
+        if (navState.currentScreen == AppScreen.SETTINGS) {
+            settingsViewModel.refreshAccountData()
+        }
+    }
+
     when {
         loginState.isCheckingSession -> LoadingBox("Memeriksa sesi…")
         !loginState.isLoggedIn -> LoginScreen(
@@ -134,7 +157,11 @@ fun AndroidTVApp(
             onLogin = loginViewModel::login,
             onUseDemo = loginViewModel::useDemoAccount,
         )
-        else -> AppWrap {
+        else -> CompositionLocalProvider(
+            LocalClockFormat provides settingsState.settings.clockFormat,
+            LocalPlaybackSettings provides settingsState.settings,
+        ) {
+        AppWrap {
         when (navState.currentScreen) {
             AppScreen.HOME -> {
                 if (homeState.isLoading && homeState.featuredChannels.isEmpty()) {
@@ -249,13 +276,26 @@ fun AndroidTVApp(
                 settings = settingsState.settings,
                 profile = settingsState.profile,
                 subscription = settingsState.subscription,
+                devices = settingsState.devices,
+                channelCount = settingsState.channelCount,
+                isOnline = settingsState.isOnline,
+                isBusy = settingsState.isBusy,
+                statusMessage = settingsState.message,
+                about = settingsState.about,
                 onSettingsChange = settingsViewModel::updateSettings,
+                onSaveDeviceName = settingsViewModel::saveDeviceName,
+                onRemoveDevice = settingsViewModel::removeDevice,
+                onRefreshChannels = settingsViewModel::refreshChannelsNow,
+                onLogout = {
+                    settingsViewModel.logout { loginViewModel.markLoggedOut() }
+                },
                 onNavigate = navViewModel::navigate,
             )
         }
 
         if (navState.toastMessage != null) {
             ToastNotification(message = navState.toastMessage!!)
+        }
         }
         }
     }

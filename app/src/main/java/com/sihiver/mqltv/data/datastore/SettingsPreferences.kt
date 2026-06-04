@@ -53,6 +53,7 @@ class SettingsPreferences @Inject constructor(
             prefs[KEY_AUTO_REFRESH] = updated.autoRefresh
             prefs[KEY_REFRESH_IV] = updated.refreshInterval
             prefs[KEY_UA] = updated.userAgent
+            prefs[KEY_CUSTOM_UA] = updated.customUserAgent
             prefs[KEY_DEVICE] = updated.deviceName
             prefs[KEY_MAX_DEV] = updated.maxDevices
             prefs[KEY_DARK] = updated.darkMode
@@ -60,6 +61,7 @@ class SettingsPreferences @Inject constructor(
             prefs[KEY_CLOCK] = updated.clockFormat
             prefs[KEY_AUTOPLAY] = updated.autoplay
             prefs[KEY_REMEMBER] = updated.rememberPosition
+            prefs[KEY_PARENTAL_PIN] = updated.parentalPin
         }
     }
 
@@ -88,6 +90,7 @@ class SettingsPreferences @Inject constructor(
         autoRefresh = this[KEY_AUTO_REFRESH] ?: true,
         refreshInterval = this[KEY_REFRESH_IV] ?: "6h",
         userAgent = this[KEY_UA] ?: "default",
+        customUserAgent = this[KEY_CUSTOM_UA] ?: "",
         deviceName = this[KEY_DEVICE] ?: "NusaVision TV",
         maxDevices = this[KEY_MAX_DEV] ?: 3,
         darkMode = this[KEY_DARK] ?: true,
@@ -95,6 +98,7 @@ class SettingsPreferences @Inject constructor(
         clockFormat = this[KEY_CLOCK] ?: "24h",
         autoplay = this[KEY_AUTOPLAY] ?: true,
         rememberPosition = this[KEY_REMEMBER] ?: true,
+        parentalPin = this[KEY_PARENTAL_PIN] ?: "",
     )
 
     companion object {
@@ -122,6 +126,7 @@ class SettingsPreferences @Inject constructor(
         private val KEY_AUTO_REFRESH = booleanPreferencesKey("auto_refresh")
         private val KEY_REFRESH_IV = stringPreferencesKey("refresh_interval")
         private val KEY_UA = stringPreferencesKey("user_agent")
+        private val KEY_CUSTOM_UA = stringPreferencesKey("custom_user_agent")
         private val KEY_DEVICE = stringPreferencesKey("device_name")
         private val KEY_MAX_DEV = intPreferencesKey("max_devices")
         private val KEY_DARK = booleanPreferencesKey("dark_mode")
@@ -129,5 +134,6 @@ class SettingsPreferences @Inject constructor(
         private val KEY_CLOCK = stringPreferencesKey("clock_format")
         private val KEY_AUTOPLAY = booleanPreferencesKey("autoplay")
         private val KEY_REMEMBER = booleanPreferencesKey("remember_position")
+        private val KEY_PARENTAL_PIN = stringPreferencesKey("parental_pin")
     }
 }

@@ -50,6 +50,18 @@ data class RegisterDeviceRequest(
     val type: String,
 )
 
+data class DeviceDto(
+    val id: Int,
+    val name: String,
+    val type: String,
+    @SerializedName("device_key") val deviceKey: String? = null,
+    @SerializedName("last_seen_at") val lastSeenAt: String? = null,
+)
+
+data class DevicesResponse(
+    val data: List<DeviceDto>,
+)
+
 data class ChannelsResponse(
     val data: List<ChannelDto>,
     val total: Int,

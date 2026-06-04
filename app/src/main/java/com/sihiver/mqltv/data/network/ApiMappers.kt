@@ -94,6 +94,7 @@ fun SubscriptionResponse.toStatus(): SubscriptionStatus {
         channelCount = channelCount ?: 0,
         expiresAt = label,
         daysRemaining = days.coerceAtLeast(0),
+        maxDevices = maxDevices ?: 1,
     )
 }
 

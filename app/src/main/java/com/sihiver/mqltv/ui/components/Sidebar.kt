@@ -35,6 +35,7 @@ import com.sihiver.mqltv.ui.theme.AccentOrange
 import com.sihiver.mqltv.ui.theme.SidebarBg
 import com.sihiver.mqltv.ui.theme.TextMuted
 import kotlinx.coroutines.delay
+import com.sihiver.mqltv.ui.theme.LocalClockFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -56,11 +57,13 @@ private val clockLocale = Locale.forLanguageTag("id-ID")
 
 @Composable
 fun useClock(): String {
-    val formatter = remember { SimpleDateFormat("HH:mm", clockLocale) }
-    var time by remember {
+    val formatKey = LocalClockFormat.current
+    val pattern = if (formatKey == "12h") "hh:mm a" else "HH:mm"
+    val formatter = remember(formatKey) { SimpleDateFormat(pattern, clockLocale) }
+    var time by remember(formatKey) {
         mutableStateOf(formatter.format(Date()))
     }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(formatKey) {
         while (true) {
             delay(1000)
             time = formatter.format(Date())

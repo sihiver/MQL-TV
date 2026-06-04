@@ -35,8 +35,11 @@ import androidx.tv.material3.Text
 import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.AppSettings
 import com.sihiver.mqltv.data.SettingsSection
+import com.sihiver.mqltv.domain.model.RegisteredDevice
 import com.sihiver.mqltv.domain.model.UserProfile
 import com.sihiver.mqltv.domain.repository.SubscriptionStatus
+import com.sihiver.mqltv.presentation.viewmodel.AboutInfo
+import com.sihiver.mqltv.ui.components.SettingsTextField
 import com.sihiver.mqltv.ui.components.SelectInput
 import com.sihiver.mqltv.ui.components.SelectOption
 import com.sihiver.mqltv.ui.components.SettingRow
@@ -55,7 +58,17 @@ fun SettingsScreen(
     settings: AppSettings,
     profile: UserProfile? = null,
     subscription: SubscriptionStatus? = null,
+    devices: List<RegisteredDevice> = emptyList(),
+    channelCount: Int = 0,
+    isOnline: Boolean = false,
+    isBusy: Boolean = false,
+    statusMessage: String? = null,
+    about: AboutInfo = AboutInfo(),
     onSettingsChange: (AppSettings) -> Unit,
+    onSaveDeviceName: (String) -> Unit = {},
+    onRemoveDevice: (Int) -> Unit = {},
+    onRefreshChannels: () -> Unit = {},
+    onLogout: () -> Unit = {},
     onNavigate: (AppScreen) -> Unit,
 ) {
     val clock = useClock()
@@ -144,16 +157,35 @@ fun SettingsScreen(
                     SettingsSection.VIDEO -> VideoSettings(settings, ::update)
                     SettingsSection.AUDIO -> AudioSettings(settings, ::update)
                     SettingsSection.SUBTITLE -> SubtitleSettings(settings, ::update)
-                    SettingsSection.NETWORK -> NetworkSettings(settings, ::update)
+                    SettingsSection.NETWORK -> NetworkSettings(
+                        settings = settings,
+                        channelCount = channelCount,
+                        isOnline = isOnline,
+                        isBusy = isBusy,
+                        update = ::update,
+                        onRefreshChannels = onRefreshChannels,
+                    )
                     SettingsSection.PARENTAL -> ParentalSettings(settings, ::update)
                     SettingsSection.ACCOUNT -> AccountSettings(
                         settings = settings,
                         profile = profile,
                         subscription = subscription,
+                        devices = devices,
                         update = ::update,
+                        onSaveDeviceName = onSaveDeviceName,
+                        onRemoveDevice = onRemoveDevice,
+                        onLogout = onLogout,
                     )
                     SettingsSection.APPEARANCE -> AppearanceSettings(settings, ::update)
-                    SettingsSection.ABOUT -> AboutSettings()
+                    SettingsSection.ABOUT -> AboutSettings(about = about)
+                }
+                if (statusMessage != null) {
+                    Text(
+                        text = statusMessage,
+                        fontSize = 12.sp,
+                        color = AccentOrange,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
                 }
             }
         }
@@ -163,9 +195,6 @@ fun SettingsScreen(
 @Composable
 private fun VideoSettings(settings: AppSettings, update: ((AppSettings) -> AppSettings) -> Unit) {
     SettingsSectionTitle("🎬 Pengaturan Video")
-    SettingRow("Kualitas Stream", "Pilih resolusi default saat streaming dimulai") {
-        SelectInput(settings.quality, qualityOptions) { v -> update { it.copy(quality = v) } }
-    }
     SettingRow("HDR", "Aktifkan High Dynamic Range jika TV mendukung") {
         TvToggle(settings.hdr) { v -> update { it.copy(hdr = v) } }
     }
@@ -282,7 +311,14 @@ private fun SubtitleSettings(settings: AppSettings, update: ((AppSettings) -> Ap
 }
 
 @Composable
-private fun NetworkSettings(settings: AppSettings, update: ((AppSettings) -> AppSettings) -> Unit) {
+private fun NetworkSettings(
+    settings: AppSettings,
+    channelCount: Int,
+    isOnline: Boolean,
+    isBusy: Boolean,
+    update: ((AppSettings) -> AppSettings) -> Unit,
+    onRefreshChannels: () -> Unit,
+) {
     SettingsSectionTitle("🌐 Sumber Playlist M3U")
     Box(
         modifier = Modifier
@@ -300,33 +336,32 @@ private fun NetworkSettings(settings: AppSettings, update: ((AppSettings) -> App
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 4.dp),
             ) {
-                Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFF68D391)))
-                Text(text = "Terhubung • 1.247 channel dimuat", fontSize = 13.sp, color = Color(0xFF68D391))
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (isOnline) Color(0xFF68D391) else Color(0xFFF6AD55)),
+                )
+                Text(
+                    text = if (isOnline) "Terhubung • $channelCount channel dimuat" else "Offline • data cache lokal",
+                    fontSize = 13.sp,
+                    color = if (isOnline) Color(0xFF68D391) else Color(0xFFF6AD55),
+                )
             }
         }
     }
     SettingRow("URL Playlist M3U", "Alamat URL playlist channel IPTV kamu") {
-        Text(
-            text = settings.m3uUrl,
-            fontSize = 11.sp,
-            color = Color.White,
-            modifier = Modifier
-                .width(280.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0x12FFFFFF))
-                .padding(10.dp),
+        SettingsTextField(
+            value = settings.m3uUrl,
+            onValueChange = { v -> update { it.copy(m3uUrl = v) } },
+            modifier = Modifier.width(280.dp),
         )
     }
     SettingRow("URL EPG (XMLTV)", "Sumber data jadwal program elektronik") {
-        Text(
-            text = settings.epgUrl,
-            fontSize = 11.sp,
-            color = Color.White,
-            modifier = Modifier
-                .width(280.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0x12FFFFFF))
-                .padding(10.dp),
+        SettingsTextField(
+            value = settings.epgUrl,
+            onValueChange = { v -> update { it.copy(epgUrl = v) } },
+            modifier = Modifier.width(280.dp),
         )
     }
     SettingRow("Auto Refresh Playlist", "Perbarui daftar channel secara otomatis") {
@@ -340,25 +375,52 @@ private fun NetworkSettings(settings: AppSettings, update: ((AppSettings) -> App
     SettingRow("User Agent", "Identitas client saat mengakses stream") {
         SelectInput(settings.userAgent, userAgentOptions) { v -> update { it.copy(userAgent = v) } }
     }
+    if (settings.userAgent == "custom") {
+        SettingRow("User Agent Kustom", "String User-Agent untuk request stream") {
+            SettingsTextField(
+                value = settings.customUserAgent,
+                onValueChange = { v -> update { it.copy(customUserAgent = v) } },
+                modifier = Modifier.width(280.dp),
+            )
+        }
+    }
     Row(modifier = Modifier.padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        SettingsActionButton("🔄 Refresh Sekarang", onClick = {}, primary = true)
-        SettingsActionButton("📁 Import dari File", onClick = {})
+        SettingsActionButton(
+            text = if (isBusy) "Memperbarui…" else "🔄 Refresh Sekarang",
+            onClick = onRefreshChannels,
+            primary = true,
+        )
     }
 }
 
 @Composable
 private fun ParentalSettings(settings: AppSettings, update: ((AppSettings) -> AppSettings) -> Unit) {
+    var pinInput by rememberSaveable { mutableStateOf("") }
     SettingsSectionTitle("🔒 Kontrol Orang Tua")
     SettingRow("Aktifkan Kontrol Orang Tua", "Batasi akses konten berdasarkan rating usia") {
         TvToggle(settings.parentalLock) { v -> update { it.copy(parentalLock = v) } }
     }
     if (settings.parentalLock) {
         SettingRow("PIN Kontrol Orang Tua", "PIN 4 digit untuk membuka kunci") {
-            SettingsActionButton(
-                text = if (settings.pinSet) "✓ PIN Sudah Diatur" else "⚠ Atur PIN",
-                onClick = { update { it.copy(pinSet = !it.pinSet) } },
-                primary = !settings.pinSet,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsTextField(
+                    value = pinInput,
+                    onValueChange = { v ->
+                        pinInput = v.filter { it.isDigit() }.take(4)
+                    },
+                    modifier = Modifier.width(120.dp),
+                )
+                SettingsActionButton(
+                    text = if (settings.pinSet) "✓ Perbarui PIN" else "Simpan PIN",
+                    onClick = {
+                        if (pinInput.length == 4) {
+                            update { it.copy(parentalPin = pinInput, pinSet = true) }
+                            pinInput = ""
+                        }
+                    },
+                    primary = !settings.pinSet,
+                )
+            }
         }
         SettingRow("Batasan Rating", "Konten di atas rating ini akan diblokir") {
             SelectInput(settings.rating, ratingOptions) { v -> update { it.copy(rating = v) } }
@@ -386,8 +448,17 @@ private fun AccountSettings(
     settings: AppSettings,
     profile: UserProfile?,
     subscription: SubscriptionStatus?,
+    devices: List<RegisteredDevice>,
     update: ((AppSettings) -> AppSettings) -> Unit,
+    onSaveDeviceName: (String) -> Unit,
+    onRemoveDevice: (Int) -> Unit,
+    onLogout: () -> Unit,
 ) {
+    var deviceNameDraft by rememberSaveable(settings.deviceName) { mutableStateOf(settings.deviceName) }
+    val maxDevices = subscription?.maxDevices ?: settings.maxDevices
+    val daysTotal = (subscription?.daysRemaining ?: 0).coerceAtLeast(1)
+    val progress = ((subscription?.daysRemaining ?: 0).toFloat() / daysTotal.coerceAtLeast(30)).coerceIn(0f, 1f)
+
     SettingsSectionTitle("👤 Akun & Perangkat")
     Row(
         modifier = Modifier
@@ -455,7 +526,7 @@ private fun AccountSettings(
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.75f)
+                        .fillMaxWidth(progress)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(2.dp))
                         .background(AccentOrange),
@@ -471,36 +542,55 @@ private fun AccountSettings(
     }
 
     SettingRow("Nama Perangkat", "Nama yang muncul di daftar perangkat aktif") {
-        Text(
-            text = settings.deviceName,
-            fontSize = 13.sp,
-            color = Color.White,
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0x12FFFFFF))
-                .padding(horizontal = 14.dp, vertical = 9.dp),
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SettingsTextField(
+                value = deviceNameDraft,
+                onValueChange = { deviceNameDraft = it.take(100) },
+                modifier = Modifier.width(240.dp),
+            )
+            SettingsActionButton(
+                text = "Simpan Nama",
+                onClick = {
+                    update { it.copy(deviceName = deviceNameDraft) }
+                    onSaveDeviceName(deviceNameDraft)
+                },
+                primary = true,
+            )
+        }
     }
     Text(
-        text = "PERANGKAT AKTIF (2 / ${settings.maxDevices})",
+        text = "PERANGKAT AKTIF (${devices.size} / $maxDevices)",
         fontSize = 12.sp,
         color = TextMuted,
         letterSpacing = 1.sp,
         modifier = Modifier.padding(top = 20.dp, bottom = 12.dp),
     )
-    listOf(
-        Triple("NusaVision TV", "Android TV", true),
-        Triple("Samsung S24", "Android", false),
-    ).forEach { (name, type, current) ->
-        DeviceRow(name = name, type = type, current = current)
-        Spacer(modifier = Modifier.height(8.dp))
+    if (devices.isEmpty()) {
+        Text(text = "Belum ada perangkat terdaftar", fontSize = 12.sp, color = TextMuted)
+    } else {
+        devices.forEach { device ->
+            DeviceRow(
+                name = device.name,
+                type = device.type,
+                lastSeen = device.lastSeenLabel,
+                current = device.isCurrent,
+                onRemove = if (!device.isCurrent) ({ onRemoveDevice(device.id) }) else null,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
     }
     Spacer(modifier = Modifier.height(16.dp))
-    SettingsActionButton("🚪 Keluar dari Akun", onClick = {}, danger = true)
+    SettingsActionButton("🚪 Keluar dari Akun", onClick = onLogout, danger = true)
 }
 
 @Composable
-private fun DeviceRow(name: String, type: String, current: Boolean) {
+private fun DeviceRow(
+    name: String,
+    type: String,
+    lastSeen: String,
+    current: Boolean,
+    onRemove: (() -> Unit)?,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -518,7 +608,7 @@ private fun DeviceRow(name: String, type: String, current: Boolean) {
         Text(text = if (current) "📺" else "📱", fontSize = 22.sp)
         Column(modifier = Modifier.weight(1f)) {
             Text(text = name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text(text = "$type • ${if (current) "Sekarang" else "2 jam lalu"}", fontSize = 11.sp, color = TextMuted)
+            Text(text = "$type • $lastSeen", fontSize = 11.sp, color = TextMuted)
         }
         if (current) {
             Box(
@@ -529,8 +619,8 @@ private fun DeviceRow(name: String, type: String, current: Boolean) {
             ) {
                 Text(text = "PERANGKAT INI", fontSize = 10.sp, color = Color(0xFF0D4D2A))
             }
-        } else {
-            SettingsActionButton("Keluarkan", onClick = {}, danger = true)
+        } else if (onRemove != null) {
+            SettingsActionButton("Keluarkan", onClick = onRemove, danger = true)
         }
     }
 }
@@ -553,14 +643,13 @@ private fun AppearanceSettings(settings: AppSettings, update: ((AppSettings) -> 
 }
 
 @Composable
-private fun AboutSettings() {
+private fun AboutSettings(about: AboutInfo) {
     SettingsSectionTitle("ℹ️ Tentang Aplikasi")
     listOf(
-        "Nama Aplikasi" to "NusaVision IPTV",
-        "Versi" to "2.4.1 (build 241)",
-        "Platform" to "Android TV 13 (API 33)",
-        "ExoPlayer" to "Media3 1.3.0",
-        "Tanggal Build" to "15 November 2024",
+        "Nama Aplikasi" to about.appName,
+        "Versi" to "${about.version} (build ${about.versionCode})",
+        "Platform" to about.platform,
+        "ExoPlayer" to about.exoPlayerVersion,
     ).forEach { (label, value) ->
         Row(
             modifier = Modifier
@@ -574,18 +663,10 @@ private fun AboutSettings() {
         }
     }
     Row(modifier = Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        SettingsActionButton("🔄 Cek Pembaruan", onClick = {}, primary = false)
-        SettingsActionButton("📋 Lisensi Open Source", onClick = {})
+        SettingsActionButton("📋 Lisensi Open Source", onClick = { /* TODO: buka layar lisensi */ })
     }
 }
 
-private val qualityOptions = listOf(
-    SelectOption("auto", "Auto (Rekomendasi)"),
-    SelectOption("1080p", "1080p Full HD"),
-    SelectOption("720p", "720p HD"),
-    SelectOption("480p", "480p SD"),
-    SelectOption("360p", "360p"),
-)
 private val aspectOptions = listOf(
     SelectOption("16:9", "16:9 Widescreen"),
     SelectOption("4:3", "4:3 Standard"),

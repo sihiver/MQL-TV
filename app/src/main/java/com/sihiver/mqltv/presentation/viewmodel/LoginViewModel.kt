@@ -51,6 +51,12 @@ class LoginViewModel @Inject constructor(
         _state.update { it.copy(password = value, error = null) }
     }
 
+    fun markLoggedOut() {
+        _state.update {
+            it.copy(isLoggedIn = false, isCheckingSession = false, error = null)
+        }
+    }
+
     fun useDemoAccount() {
         _state.update {
             it.copy(

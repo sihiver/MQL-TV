@@ -9,7 +9,7 @@ router.use(authenticate);
 router.get("/", async (req, res, next) => {
   try {
     const result = await db.query(
-      `SELECT id, name, type, last_seen_at, created_at
+      `SELECT id, name, type, device_key, last_seen_at, created_at
        FROM devices WHERE user_id = $1 ORDER BY last_seen_at DESC`,
       [req.user.id],
     );
@@ -83,6 +83,22 @@ router.post("/register", async (req, res, next) => {
       data: result.rows[0],
       maxDevices,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Lepaskan perangkat lain dari akun (bukan perangkat ini). */
+router.delete("/:id", async (req, res, next) => {
+  try {
+    const result = await db.query(
+      `DELETE FROM devices WHERE id = $1 AND user_id = $2 RETURNING id`,
+      [req.params.id, req.user.id],
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Perangkat tidak ditemukan" });
+    }
+    res.json({ success: true, id: result.rows[0].id });
   } catch (err) {
     next(err);
   }

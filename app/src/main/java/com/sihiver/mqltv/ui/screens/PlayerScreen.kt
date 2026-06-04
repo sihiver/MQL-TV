@@ -71,6 +71,8 @@ import com.sihiver.mqltv.data.EpgItem
 import com.sihiver.mqltv.presentation.player.HlsVideoPlayer
 import com.sihiver.mqltv.domain.model.LiveEpgNow
 import com.sihiver.mqltv.domain.model.StreamQualityOption
+import com.sihiver.mqltv.data.playback.PlaybackSettingsMapper
+import com.sihiver.mqltv.ui.theme.LocalPlaybackSettings
 import com.sihiver.mqltv.presentation.viewmodel.qualityButtonLabel
 import com.sihiver.mqltv.ui.components.ChannelLogoContent
 import com.sihiver.mqltv.ui.components.CtrlButton
@@ -225,6 +227,10 @@ private fun VideoArea(
     channels: List<Channel> = emptyList(),
     onPlayingChange: (Channel) -> Unit = {},
 ) {
+    val playbackSettings = LocalPlaybackSettings.current
+    val resolvedUserAgent = PlaybackSettingsMapper.resolveUserAgent(playbackSettings, streamUserAgent)
+        ?: streamUserAgent
+    val preferredAudio = PlaybackSettingsMapper.preferredAudioLanguage(playbackSettings.audioTrack)
     val view = LocalView.current
     val channelByNumber = rememberChannelByNumber(channels)
     val playingChannelNumber = remember(channels, playing.id) {
@@ -393,11 +399,15 @@ private fun VideoArea(
                         streamUrl = playing.streamUrl,
                         isPlaying = isPlaying,
                         isMuted = isMuted,
-                        userAgent = streamUserAgent,
+                        userAgent = resolvedUserAgent,
                         referer = streamReferer,
                         drmType = streamDrmType,
                         drmKey = streamDrmKey,
                         maxVideoHeight = selectedQualityHeight,
+                        bufferSize = playbackSettings.bufferSize,
+                        hardwareDecode = playbackSettings.hardwareDecode,
+                        aspectRatio = playbackSettings.aspectRatio,
+                        preferredAudioLanguage = preferredAudio,
                         onLoadingChange = { isPlayerBuffering = it },
                         onStreamRefresh = onStreamRefresh,
                         modifier = Modifier.fillMaxSize(),

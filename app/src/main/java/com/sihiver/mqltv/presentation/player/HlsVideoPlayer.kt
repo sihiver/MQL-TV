@@ -28,6 +28,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.PlayerView
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import com.sihiver.mqltv.data.playback.PlaybackSettingsMapper
 import com.sihiver.mqltv.data.stream.IptvStreamUrl
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -49,6 +52,10 @@ fun HlsVideoPlayer(
     drmType: String? = null,
     drmKey: String? = null,
     maxVideoHeight: Int? = null,
+    bufferSize: String = "medium",
+    hardwareDecode: Boolean = true,
+    aspectRatio: String = "16:9",
+    preferredAudioLanguage: String? = null,
     onLoadingChange: (Boolean) -> Unit = {},
     onStreamRefresh: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -67,12 +74,22 @@ fun HlsVideoPlayer(
         IptvStreamUrl.resolveHeaders(streamUrl, userAgent, referer)
     }
 
-    val playerConfigKey = listOf(playbackUrl, drmType, drmKey, requestHeaders)
+    val playerConfigKey = listOf(
+        playbackUrl, drmType, drmKey, requestHeaders,
+        bufferSize, hardwareDecode, preferredAudioLanguage,
+    )
 
     val exoPlayer = remember(playerConfigKey) {
         val trackSelector = DefaultTrackSelector(context)
+        preferredAudioLanguage?.let { lang ->
+            trackSelector.setParameters(
+                trackSelector.buildUponParameters().setPreferredAudioLanguage(lang),
+            )
+        }
         val ua = requestHeaders["User-Agent"] ?: "NusaVision/1.0"
         val extraHeaders = requestHeaders.filterKeys { it != "User-Agent" }
+
+        val (minBuffer, maxBuffer, playbackBuffer) = PlaybackSettingsMapper.bufferDurationsMs(bufferSize)
 
         val dataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent(ua)
@@ -89,15 +106,29 @@ fun HlsVideoPlayer(
             }
         }
 
-        ExoPlayer.Builder(context)
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(minBuffer, maxBuffer, playbackBuffer, playbackBuffer)
+            .build()
+
+        val renderersFactory = DefaultRenderersFactory(context).apply {
+            setEnableDecoderFallback(true)
+            if (!hardwareDecode) {
+                setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+            }
+        }
+
+        ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
             .setMediaSourceFactory(mediaSourceFactory)
+            .setLoadControl(loadControl)
             .build()
             .apply {
                 repeatMode = Player.REPEAT_MODE_OFF
                 setWakeMode(C.WAKE_MODE_NETWORK)
             }
     }
+
+    val resizeMode = remember(aspectRatio) { PlaybackSettingsMapper.resizeMode(aspectRatio) }
 
     fun buildMediaItem(): MediaItem {
         val drmUuid = StreamDrm.drmUuid(drmType, drmKey)
@@ -271,6 +302,9 @@ fun HlsVideoPlayer(
                 )
             }
         },
-        update = { view -> view.player = exoPlayer },
+        update = { view ->
+            view.player = exoPlayer
+            view.resizeMode = resizeMode
+        },
     )
 }

@@ -2,6 +2,7 @@ package com.sihiver.mqltv.data.network
 
 import com.sihiver.mqltv.data.network.dto.ChannelCategoriesResponse
 import com.sihiver.mqltv.data.network.dto.ChannelsResponse
+import com.sihiver.mqltv.data.network.dto.DevicesResponse
 import com.sihiver.mqltv.data.network.dto.EpgListResponse
 import com.sihiver.mqltv.data.network.dto.FavoritesResponse
 import com.sihiver.mqltv.data.network.dto.LiveEpgResponse
@@ -87,4 +88,10 @@ interface ApiService {
 
     @POST("api/devices/register")
     suspend fun registerDevice(@Body body: RegisterDeviceRequest)
+
+    @GET("api/devices")
+    suspend fun getDevices(): DevicesResponse
+
+    @DELETE("api/devices/{id}")
+    suspend fun deleteDevice(@Path("id") deviceId: Int)
 }

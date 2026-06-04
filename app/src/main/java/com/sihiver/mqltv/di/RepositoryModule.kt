@@ -6,7 +6,9 @@ import com.sihiver.mqltv.data.repository.FavoriteRepositoryImpl
 import com.sihiver.mqltv.data.repository.SettingsRepositoryImpl
 import com.sihiver.mqltv.data.repository.StreamRepositoryImpl
 import com.sihiver.mqltv.data.repository.UserRepositoryImpl
+import com.sihiver.mqltv.data.repository.DeviceRepositoryImpl
 import com.sihiver.mqltv.domain.repository.ChannelRepository
+import com.sihiver.mqltv.domain.repository.DeviceRepository
 import com.sihiver.mqltv.domain.repository.EpgRepository
 import com.sihiver.mqltv.domain.repository.FavoriteRepository
 import com.sihiver.mqltv.domain.repository.SettingsRepository
@@ -45,4 +47,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindStreamRepository(impl: StreamRepositoryImpl): StreamRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDeviceRepository(impl: DeviceRepositoryImpl): DeviceRepository
 }

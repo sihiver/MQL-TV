@@ -15,6 +15,7 @@ data class SubscriptionStatus(
     val channelCount: Int,
     val expiresAt: String,
     val daysRemaining: Int,
+    val maxDevices: Int = 1,
 )
 
 interface UserRepository {
