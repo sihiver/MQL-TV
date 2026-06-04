@@ -27,6 +27,12 @@ class MemoryRedis {
     return entry.value;
   }
 
+  async set(key, value) {
+    this._warn();
+    this.store.set(key, { value, expiresAt: null });
+    return "OK";
+  }
+
   async setex(key, seconds, value) {
     this._warn();
     this.store.set(key, { value, expiresAt: Date.now() + seconds * 1000 });
@@ -103,6 +109,7 @@ async function useRedis(fn) {
 
 export const redis = {
   get: (key) => useRedis((r) => r.get(key)),
+  set: (key, value) => useRedis((r) => r.set(key, value)),
   setex: (key, seconds, value) => useRedis((r) => r.setex(key, seconds, value)),
   del: (...keys) => useRedis((r) => r.del(...keys)),
   keys: (pattern) => useRedis((r) => r.keys(pattern)),

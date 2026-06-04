@@ -33,6 +33,17 @@ function defaultExpires() {
   return d.toISOString().slice(0, 10);
 }
 
+/** Tanggal berakhir = akhir hari (UTC) agar masih aktif sepanjang hari tersebut. */
+function toExpiresIso(dateStr) {
+  if (!dateStr) return null;
+  return `${dateStr}T23:59:59.999Z`;
+}
+
+function isDateExpired(dateStr) {
+  if (!dateStr) return false;
+  return new Date(toExpiresIso(dateStr)) <= new Date();
+}
+
 const EMPTY_FORM = {
   userId: "",
   plan: "premium",
@@ -111,9 +122,9 @@ export default function SubscriptionsPage() {
       const body = {
         userId: parseInt(form.userId, 10),
         plan: form.plan,
-        status: form.status,
+        status: isDateExpired(form.expiresAt) ? "expired" : form.status,
         startedAt: new Date(form.startedAt).toISOString(),
-        expiresAt: new Date(form.expiresAt).toISOString(),
+        expiresAt: toExpiresIso(form.expiresAt),
         maxDevices: parseInt(form.maxDevices, 10) || 1,
       };
 
@@ -378,7 +389,19 @@ export default function SubscriptionsPage() {
             </div>
             <div>
               <div style={{ fontSize: 11, color: "#888", letterSpacing: 1, marginBottom: 6 }}>BERAKHIR</div>
-              <input type="date" value={form.expiresAt} onChange={(e) => setForm((p) => ({ ...p, expiresAt: e.target.value }))} style={inputStyle} />
+              <input
+                type="date"
+                value={form.expiresAt}
+                onChange={(e) => {
+                  const expiresAt = e.target.value;
+                  setForm((p) => ({
+                    ...p,
+                    expiresAt,
+                    status: isDateExpired(expiresAt) ? "expired" : "active",
+                  }));
+                }}
+                style={inputStyle}
+              />
             </div>
           </div>
 

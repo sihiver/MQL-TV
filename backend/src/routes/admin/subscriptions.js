@@ -15,8 +15,28 @@ function capitalizePlan(plan) {
   return p.charAt(0).toUpperCase() + p.slice(1);
 }
 
+function isExpiredAt(expiresAt) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt) <= new Date();
+}
+
+/** Status efektif: tanggal lewat = expired, kecuali admin set expired manual. */
+function resolveStatus(expiresAt, requestedStatus) {
+  if (isExpiredAt(expiresAt)) return "expired";
+  if (requestedStatus === "expired") return "expired";
+  return requestedStatus || "active";
+}
+
+async function expireStaleSubscriptions() {
+  await db.query(
+    `UPDATE subscriptions SET status = 'expired'
+     WHERE status = 'active' AND expires_at <= NOW()`,
+  );
+}
+
 function mapSubscription(row) {
   const planKey = (row.plan || "free").toLowerCase();
+  const status = resolveStatus(row.expires_at, row.status);
   return {
     id: row.id,
     userId: row.user_id,
@@ -25,7 +45,7 @@ function mapSubscription(row) {
     plan: row.package_name || capitalizePlan(row.plan),
     planKey,
     price: row.package_price ?? 0,
-    status: row.status,
+    status,
     start: fmtDate(row.started_at),
     end: fmtDate(row.expires_at),
     startedAt: row.started_at,
@@ -56,6 +76,8 @@ const SELECT_JOIN = `
 // GET /api/admin/subscriptions
 router.get("/", async (req, res, next) => {
   try {
+    await expireStaleSubscriptions();
+
     const { filter = "Semua", search = "" } = req.query;
     const params = [];
     const conditions = ["1=1"];
@@ -66,9 +88,10 @@ router.get("/", async (req, res, next) => {
     }
 
     const f = filter.toLowerCase();
-    if (f === "active" || f === "expired") {
-      params.push(f);
-      conditions.push(`s.status = $${params.length}`);
+    if (f === "active") {
+      conditions.push(`s.status = 'active' AND s.expires_at > NOW()`);
+    } else if (f === "expired") {
+      conditions.push(`(s.status = 'expired' OR s.expires_at <= NOW())`);
     } else if (filter !== "Semua") {
       params.push(filter.toLowerCase());
       conditions.push(`LOWER(s.plan) = $${params.length}`);
@@ -125,11 +148,12 @@ router.post("/", async (req, res, next) => {
 
     const devices = maxDevices ?? pkg.max_devices ?? 1;
     const start = startedAt || new Date().toISOString();
+    const resolvedStatus = resolveStatus(expiresAt, status);
     const result = await db.query(
       `INSERT INTO subscriptions (user_id, plan, status, started_at, expires_at, max_devices)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, user_id, plan, status, started_at, expires_at, max_devices`,
-      [userId, pkg.slug, status, start, expiresAt, devices],
+      [userId, pkg.slug, resolvedStatus, start, expiresAt, devices],
     );
 
     const row = await db.query(`${SELECT_JOIN} WHERE s.id = $1`, [result.rows[0].id]);
@@ -155,6 +179,10 @@ router.put("/:id", async (req, res, next) => {
   try {
     const { plan, status, startedAt, expiresAt, maxDevices } = req.body;
 
+    const current = await db.query("SELECT * FROM subscriptions WHERE id = $1", [req.params.id]);
+    if (!current.rows.length) return res.status(404).json({ error: "Subscription tidak ditemukan" });
+    const sub = current.rows[0];
+
     let planSlug;
     if (plan !== undefined) {
       const pkg = await resolvePackage(plan);
@@ -164,10 +192,16 @@ router.put("/:id", async (req, res, next) => {
       planSlug = pkg.slug;
     }
 
+    const finalExpires = expiresAt ?? sub.expires_at;
+    const finalStatus = resolveStatus(
+      finalExpires,
+      status !== undefined ? status : sub.status,
+    );
+
     const result = await db.query(
       `UPDATE subscriptions SET
          plan = COALESCE($1, plan),
-         status = COALESCE($2, status),
+         status = $2,
          started_at = COALESCE($3, started_at),
          expires_at = COALESCE($4, expires_at),
          max_devices = COALESCE($5, max_devices)
@@ -175,7 +209,7 @@ router.put("/:id", async (req, res, next) => {
        RETURNING id`,
       [
         planSlug,
-        status,
+        finalStatus,
         startedAt,
         expiresAt,
         maxDevices,
