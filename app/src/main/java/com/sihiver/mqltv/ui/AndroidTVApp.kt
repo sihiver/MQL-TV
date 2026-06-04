@@ -125,6 +125,8 @@ fun AndroidTVApp(
     LaunchedEffect(loginState.isLoggedIn) {
         if (loginState.isLoggedIn) {
             settingsViewModel.refreshSubscription()
+            homeViewModel.refreshFavorites()
+            channelViewModel.refreshChannels()
         }
     }
 
@@ -143,8 +145,13 @@ fun AndroidTVApp(
     }
 
     LaunchedEffect(navState.currentScreen) {
-        if (navState.currentScreen == AppScreen.SETTINGS) {
-            settingsViewModel.refreshAccountData()
+        when (navState.currentScreen) {
+            AppScreen.SETTINGS -> settingsViewModel.refreshAccountData()
+            AppScreen.FAVORITES -> {
+                favoritesViewModel.refresh()
+                channelViewModel.refreshChannels()
+            }
+            else -> Unit
         }
     }
 
@@ -164,7 +171,11 @@ fun AndroidTVApp(
         AppWrap {
         when (navState.currentScreen) {
             AppScreen.HOME -> {
-                if (homeState.isLoading && homeState.featuredChannels.isEmpty()) {
+                if (
+                    homeState.isLoading &&
+                    homeState.featuredChannels.isEmpty() &&
+                    homeState.favoriteChannels.isEmpty()
+                ) {
                     LoadingBox()
                     return@AppWrap
                 }
@@ -259,18 +270,28 @@ fun AndroidTVApp(
                 subscription = subscription,
             )
 
-            AppScreen.FAVORITES -> FavoritesScreen(
-                favorites = favoritesState.favorites,
-                onNavigate = navViewModel::navigate,
-                onOpenPlayer = ::openPlayer,
-                subscription = subscription,
-                onAddFavorite = { id ->
-                    favoritesViewModel.addFavorite(id) { navViewModel.showToast(it) }
-                },
-                onRemoveFavorite = { id ->
-                    favoritesViewModel.removeFavorite(id) { navViewModel.showToast(it) }
-                },
-            )
+            AppScreen.FAVORITES -> {
+                val favChannels = favoritesState.channels.ifEmpty { channelState.channels }
+                if (favoritesState.isLoading && favChannels.isEmpty() && favoritesState.favorites.isEmpty()) {
+                    LoadingBox("Memuat favorit…")
+                } else {
+                    FavoritesScreen(
+                        favorites = favoritesState.favorites,
+                        channels = favChannels,
+                        isLoadingChannels = favoritesState.isLoading && favChannels.isEmpty() &&
+                            favoritesState.favorites.isNotEmpty(),
+                        onNavigate = navViewModel::navigate,
+                        onOpenPlayer = ::openPlayer,
+                        subscription = subscription,
+                        onAddFavorite = { id ->
+                            favoritesViewModel.addFavorite(id) { navViewModel.showToast(it) }
+                        },
+                        onRemoveFavorite = { id ->
+                            favoritesViewModel.removeFavorite(id) { navViewModel.showToast(it) }
+                        },
+                    )
+                }
+            }
 
             AppScreen.SETTINGS -> SettingsScreen(
                 settings = settingsState.settings,

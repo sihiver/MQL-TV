@@ -2,6 +2,7 @@ package com.sihiver.mqltv.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sihiver.mqltv.domain.repository.FavoriteRepository
 import com.sihiver.mqltv.domain.usecase.LoginUseCase
 import com.sihiver.mqltv.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +27,7 @@ data class LoginUiState(
 class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
     private val userRepository: UserRepository,
+    private val favoriteRepository: FavoriteRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState())
@@ -34,6 +36,9 @@ class LoginViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val restored = userRepository.restoreSession()
+            if (restored) {
+                launch { runCatching { favoriteRepository.syncFromApi() } }
+            }
             _state.update {
                 it.copy(
                     isCheckingSession = false,

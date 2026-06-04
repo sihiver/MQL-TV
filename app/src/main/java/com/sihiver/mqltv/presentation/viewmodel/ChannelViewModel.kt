@@ -90,6 +90,12 @@ class ChannelViewModel @Inject constructor(
         viewModelScope.launch { manageFavorite.toggle(channelId) }
     }
 
+    fun refreshChannels() {
+        viewModelScope.launch {
+            reloadFromLocal(_state.value.activeCategory, refreshCategories = false)
+        }
+    }
+
     private suspend fun reloadFromLocal(category: String, refreshCategories: Boolean = false) {
         val categories = if (refreshCategories) {
             getChannels.fetchCategories()

@@ -53,9 +53,14 @@ class FavoriteRepositoryImpl @Inject constructor(
     override suspend fun syncFromApi() {
         if (tokenStore.token == null) return
         runCatching {
-            val res = api.getFavorites()
-            favoriteDao.deleteAll()
-            res.data.forEach { favoriteDao.insert(FavoriteEntity(it.channelId)) }
+            val remoteIds = api.getFavorites().data.map { it.channelId }.toSet()
+            val localIds = favoriteDao.getIds().toSet()
+            (localIds - remoteIds).forEach { favoriteDao.delete(it) }
+            remoteIds.forEach { id ->
+                if (!favoriteDao.isFavorite(id)) {
+                    favoriteDao.insert(FavoriteEntity(id))
+                }
+            }
         }
     }
 

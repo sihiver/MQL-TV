@@ -38,7 +38,6 @@ import com.sihiver.mqltv.data.AppScreen
 import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.FavoritesSort
 import com.sihiver.mqltv.data.FavoritesViewMode
-import com.sihiver.mqltv.data.sampleChannels
 import com.sihiver.mqltv.domain.repository.SubscriptionStatus
 import com.sihiver.mqltv.ui.components.CategoryPills
 import com.sihiver.mqltv.ui.components.ChannelLogoBox
@@ -57,6 +56,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun FavoritesScreen(
     favorites: List<Int>,
+    channels: List<Channel>,
+    isLoadingChannels: Boolean = false,
     onNavigate: (AppScreen) -> Unit,
     onOpenPlayer: (Channel) -> Unit,
     onAddFavorite: (Int) -> Unit,
@@ -79,25 +80,28 @@ fun FavoritesScreen(
 
     val sort = FavoritesSort.valueOf(sortBy)
     val mode = FavoritesViewMode.valueOf(viewMode)
-    val categories = remember {
-        listOf("Semua") + sampleChannels.map { it.category }.distinct()
+    val categories = remember(channels) {
+        listOf("Semua") + channels.map { it.category }.distinct().sorted()
     }
 
-    val favChannels = remember(favorites, filterCat, search, sort) {
-        sampleChannels
+    val favChannels = remember(favorites, channels, filterCat, search, sort) {
+        val idOrder = favorites.withIndex().associate { it.value to it.index }
+        channels
             .filter { favorites.contains(it.id) }
             .filter { filterCat == "Semua" || it.category == filterCat }
             .filter { it.name.contains(search, ignoreCase = true) }
             .sortedWith(
                 when (sort) {
-                    FavoritesSort.NAME -> compareBy { it.name }
-                    FavoritesSort.VIEWERS -> compareByDescending { it.viewers }
+                    FavoritesSort.NAME -> compareBy<Channel> { it.name }
+                        .thenBy { idOrder[it.id] ?: Int.MAX_VALUE }
+                    FavoritesSort.VIEWERS -> compareByDescending<Channel> { it.viewers }
+                        .thenBy { idOrder[it.id] ?: Int.MAX_VALUE }
                 },
             )
     }
 
-    val nonFavChannels = remember(favorites) {
-        sampleChannels.filter { !favorites.contains(it.id) }
+    val nonFavChannels = remember(favorites, channels) {
+        channels.filter { !favorites.contains(it.id) }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -178,7 +182,18 @@ fun FavoritesScreen(
                             .padding(start = 32.dp, end = 24.dp, top = 20.dp, bottom = 24.dp),
                     ) {
                         when {
-                            favChannels.isEmpty() -> EmptyFavorites(hasSearch = search.isNotEmpty())
+                            isLoadingChannels -> {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 80.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text("Memuat favorit…", color = TextMuted, fontSize = 14.sp)
+                                }
+                            }
+                            favChannels.isEmpty() -> EmptyFavorites(
+                                hasSearch = search.isNotEmpty(),
+                                hasFavorites = favorites.isNotEmpty(),
+                            )
                             mode == FavoritesViewMode.GRID -> {
                                 favChannels.chunked(3).forEach { row ->
                                     Row(
@@ -222,7 +237,7 @@ fun FavoritesScreen(
                         channels = nonFavChannels,
                         onAdd = { id ->
                             onAddFavorite(id)
-                            val name = sampleChannels.first { it.id == id }.name
+                            val name = channels.firstOrNull { it.id == id }?.name ?: "Channel"
                             notification = "$name ditambahkan ke favorit"
                         },
                     )
@@ -284,21 +299,28 @@ private fun ViewModeToggle(viewMode: FavoritesViewMode, onChange: (FavoritesView
 }
 
 @Composable
-private fun EmptyFavorites(hasSearch: Boolean) {
+private fun EmptyFavorites(hasSearch: Boolean, hasFavorites: Boolean = false) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 80.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(text = "⭐", fontSize = 52.sp)
         Text(
-            text = "Tidak ada favorit",
+            text = when {
+                hasFavorites -> "Memuat daftar channel…"
+                else -> "Tidak ada favorit"
+            },
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFFCCCCCC),
             modifier = Modifier.padding(top = 16.dp),
         )
         Text(
-            text = if (hasSearch) "Tidak ada hasil untuk pencarian ini" else "Tambah channel dari panel kanan",
+            text = when {
+                hasSearch -> "Tidak ada hasil untuk pencarian ini"
+                hasFavorites -> "Channel favorit akan muncul sebentar lagi"
+                else -> "Tambah channel dari panel kanan"
+            },
             fontSize = 13.sp,
             color = TextMuted,
             textAlign = TextAlign.Center,

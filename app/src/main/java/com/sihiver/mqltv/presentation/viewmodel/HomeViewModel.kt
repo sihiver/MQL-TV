@@ -6,10 +6,10 @@ import com.sihiver.mqltv.data.Channel
 import com.sihiver.mqltv.data.mapper.ChannelMapper
 import com.sihiver.mqltv.domain.model.Channel as DomainChannel
 import com.sihiver.mqltv.domain.repository.ChannelRepository
+import com.sihiver.mqltv.domain.repository.FavoriteRepository
 import com.sihiver.mqltv.domain.usecase.GetTrendingChannelsUseCase
 import com.sihiver.mqltv.domain.usecase.ManageFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,13 +23,14 @@ data class HomeUiState(
     val favoriteChannels: List<Channel> = emptyList(),
     val favorites: List<Int> = emptyList(),
     val restoreFocusChannelId: Int? = null,
-    val isLoading: Boolean = true,
+    val isLoading: Boolean = false,
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val getTrendingChannels: GetTrendingChannelsUseCase,
     private val channelRepository: ChannelRepository,
+    private val favoriteRepository: FavoriteRepository,
     private val manageFavorite: ManageFavoriteUseCase,
 ) : ViewModel() {
 
@@ -37,6 +38,9 @@ class HomeViewModel @Inject constructor(
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            refreshFavoritesFromLocal()
+        }
         viewModelScope.launch {
             combine(
                 manageFavorite.observeIds(),
@@ -50,7 +54,24 @@ class HomeViewModel @Inject constructor(
                     }
                 }
         }
-        loadUi()
+        viewModelScope.launch {
+            runCatching { favoriteRepository.syncFromApi() }
+            refreshFavoritesFromLocal()
+        }
+        loadFeatured()
+    }
+
+    private suspend fun refreshFavoritesFromLocal() {
+        val ids = manageFavorite.getIds()
+        val channels = channelRepository.getAllChannels()
+        val favoriteChannels = buildFavoriteChannelsUi(ids, channels, _state.value)
+        _state.update {
+            it.copy(
+                favorites = ids,
+                favoriteChannels = favoriteChannels,
+                isLoading = false,
+            )
+        }
     }
 
     private suspend fun buildFavoriteChannelsUi(
@@ -75,10 +96,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun loadUi() {
+    private fun loadFeatured() {
         viewModelScope.launch {
-            val showLoading = _state.value.featuredChannels.isEmpty()
-            if (showLoading) _state.update { it.copy(isLoading = true) }
             runCatching {
                 val featured = ChannelMapper.toUiList(
                     getTrendingChannels(days = 30, limit = 10),
@@ -115,6 +134,13 @@ class HomeViewModel @Inject constructor(
     fun toggleFavorite(channelId: Int) {
         viewModelScope.launch {
             manageFavorite.toggle(channelId)
+        }
+    }
+
+    fun refreshFavorites() {
+        viewModelScope.launch {
+            runCatching { favoriteRepository.syncFromApi() }
+            refreshFavoritesFromLocal()
         }
     }
 }
