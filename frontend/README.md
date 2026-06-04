@@ -27,7 +27,7 @@ npm run dev
 npm run dev:lan
 ```
 
-Buka URL di `.env` → `VITE_PUBLIC_URL` (contoh `http://192.168.15.131:5173`).
+Buka URL di `.env` → `VITE_PUBLIC_URL` (contoh `https://tv.mqlspot.my.id`).
 
 **Proxy Vite:** Jika `VITE_USE_PROXY=true` (default di `.env.example`), request `/api` dan `/health` diteruskan ke backend — **tanpa masalah CORS** di mode dev.
 
@@ -104,7 +104,7 @@ frontend/
 2. `VITE_ADMIN_API_KEY` harus sama dengan `ADMIN_API_KEY` backend
 3. Tambahkan URL panel admin ke `ALLOWED_ORIGINS` di backend, contoh:
    ```
-   ALLOWED_ORIGINS=http://192.168.15.131:5173
+   ALLOWED_ORIGINS=https://tv.mqlspot.my.id
    ```
 4. Dev: gunakan `npm run dev` dengan `VITE_USE_PROXY=true` dan restart setelah ubah `.env`
 
