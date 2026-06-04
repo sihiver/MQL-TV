@@ -56,6 +56,12 @@ interface ApiService {
     @GET("api/channels/{id}/stream")
     suspend fun getStream(@Path("id") channelId: Int): StreamResponse
 
+    @POST("api/channels/{id}/watch-ping")
+    suspend fun watchPing(@Path("id") channelId: Int)
+
+    @POST("api/channels/watch/stop")
+    suspend fun watchStop()
+
     @GET("api/channels/{id}/stream/qualities")
     suspend fun getStreamQualities(@Path("id") channelId: Int): StreamQualitiesResponse
 

@@ -1,7 +1,19 @@
+/** Jendela "sedang menonton" di dashboard (harus ada ping dalam interval ini). */
+export const WATCH_ACTIVE_MINUTES = 3;
+
 /**
- * Catat tontonan channel (maks. 1 entri per user+channel per 30 menit).
+ * Catat mulai tontonan (analytics: maks. 1 baris baru per user+channel per 30 menit).
  */
 export async function recordChannelView(db, userId, channelId) {
+  const updated = await db.query(
+    `UPDATE channel_views SET viewed_at = NOW()
+     WHERE channel_id = $1 AND user_id = $2
+       AND viewed_at > NOW() - INTERVAL '30 minutes'
+     RETURNING id`,
+    [channelId, userId],
+  );
+  if (updated.rowCount > 0) return;
+
   await db.query(
     `INSERT INTO channel_views (channel_id, user_id)
      SELECT $1, $2
@@ -12,6 +24,32 @@ export async function recordChannelView(db, userId, channelId) {
          AND viewed_at > NOW() - INTERVAL '30 minutes'
      )`,
     [channelId, userId],
+  );
+}
+
+/** Perpanjang sesi tontonan aktif (dipanggil berkala dari app TV). */
+export async function touchChannelView(db, userId, channelId) {
+  const updated = await db.query(
+    `UPDATE channel_views SET viewed_at = NOW()
+     WHERE channel_id = $1 AND user_id = $2
+       AND viewed_at > NOW() - INTERVAL '10 minutes'
+     RETURNING id`,
+    [channelId, userId],
+  );
+  if (updated.rowCount > 0) return;
+
+  await db.query(
+    `INSERT INTO channel_views (channel_id, user_id) VALUES ($1, $2)`,
+    [channelId, userId],
+  );
+}
+
+/** Hapus sesi aktif saat user berhenti menonton / app ke background. */
+export async function clearChannelView(db, userId) {
+  await db.query(
+    `DELETE FROM channel_views
+     WHERE user_id = $1 AND viewed_at > NOW() - INTERVAL '10 minutes'`,
+    [userId],
   );
 }
 

@@ -49,6 +49,16 @@ class StreamRepositoryImpl @Inject constructor(
         else -> StreamFormat.UNKNOWN
     }
 
+    override suspend fun pingWatchSession(channelId: Int) {
+        if (tokenStore.token == null) return
+        runCatching { api.watchPing(channelId) }
+    }
+
+    override suspend fun stopWatchSession() {
+        if (tokenStore.token == null) return
+        runCatching { api.watchStop() }
+    }
+
     override suspend fun fetchQualities(channelId: Int): StreamQualitiesResult {
         return runCatching {
             val res = api.getStreamQualities(channelId)

@@ -70,6 +70,7 @@ class PlayerViewModel @Inject constructor(
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
     private var loadChannelJob: Job? = null
     private var liveEpgJob: Job? = null
+    private var watchPingJob: Job? = null
     private var lastChannelSyncMs = 0L
     private var resumePlaybackAfterForeground = false
 
@@ -92,6 +93,7 @@ class PlayerViewModel @Inject constructor(
     fun loadChannel(channel: Channel) {
         loadChannelJob?.cancel()
         liveEpgJob?.cancel()
+        stopWatchPing()
         _state.update {
             it.copy(
                 playingChannel = channel.copy(streamUrl = ""),
@@ -134,8 +136,29 @@ class PlayerViewModel @Inject constructor(
                         masterStreamUrl = stream.url,
                     )
                 }
+                startWatchPing(channel.id)
             }
             startLiveEpgPolling(channel.id)
+        }
+    }
+
+    private fun startWatchPing(channelId: Int) {
+        watchPingJob?.cancel()
+        watchPingJob = viewModelScope.launch {
+            while (isActive) {
+                withContext(Dispatchers.IO) {
+                    streamRepository.pingWatchSession(channelId)
+                }
+                delay(WATCH_PING_MS)
+            }
+        }
+    }
+
+    private fun stopWatchPing() {
+        watchPingJob?.cancel()
+        watchPingJob = null
+        viewModelScope.launch(Dispatchers.IO) {
+            streamRepository.stopWatchSession()
         }
     }
 
@@ -169,6 +192,7 @@ class PlayerViewModel @Inject constructor(
     private companion object {
         const val CHANNEL_SYNC_COOLDOWN_MS = 60_000L
         const val LIVE_EPG_REFRESH_MS = 60_000L
+        const val WATCH_PING_MS = 60_000L
     }
 
     fun openQualityPicker() {
@@ -234,6 +258,7 @@ class PlayerViewModel @Inject constructor(
         if (onPlayer) {
             setPlaying(false)
             liveEpgJob?.cancel()
+            stopWatchPing()
         }
     }
 
@@ -242,7 +267,10 @@ class PlayerViewModel @Inject constructor(
         if (!resumePlaybackAfterForeground) return
         resumePlaybackAfterForeground = false
         setPlaying(true)
-        _state.value.playingChannel?.id?.let { startLiveEpgPolling(it) }
+        _state.value.playingChannel?.id?.let { channelId ->
+            startLiveEpgPolling(channelId)
+            startWatchPing(channelId)
+        }
     }
 
     /** Keluar dari layar player (navigasi / back). */
@@ -250,6 +278,7 @@ class PlayerViewModel @Inject constructor(
         resumePlaybackAfterForeground = false
         setPlaying(false)
         liveEpgJob?.cancel()
+        stopWatchPing()
     }
 
     /** Ambil ulang URL stream (token baru) tanpa reset UI channel. */

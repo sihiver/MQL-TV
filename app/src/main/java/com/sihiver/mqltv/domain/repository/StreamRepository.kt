@@ -23,4 +23,8 @@ data class StreamQualitiesResult(
 interface StreamRepository {
     suspend fun resolveStream(channel: Channel): StreamInfo
     suspend fun fetchQualities(channelId: Int): StreamQualitiesResult
+    /** Perpanjang sesi "sedang menonton" di dashboard admin. */
+    suspend fun pingWatchSession(channelId: Int)
+    /** Hapus dari daftar sedang menonton (background / keluar player). */
+    suspend fun stopWatchSession()
 }

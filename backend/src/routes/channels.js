@@ -10,7 +10,12 @@ import {
   getPackageBySlug,
   channelAllowedForPackage,
 } from "../services/packageAccess.js";
-import { recordChannelView, getTrendingChannels } from "../services/channelViews.js";
+import {
+  recordChannelView,
+  touchChannelView,
+  clearChannelView,
+  getTrendingChannels,
+} from "../services/channelViews.js";
 
 const router = Router();
 router.use(authenticate);
@@ -214,6 +219,28 @@ async function loadChannelForStream(req, res, next) {
 
   return channel.rows[0];
 }
+
+// POST /api/channels/watch/stop — keluar dari player / background
+router.post("/watch/stop", async (req, res, next) => {
+  try {
+    await clearChannelView(db, req.user.id);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/channels/:id/watch-ping — heartbeat sedang menonton
+router.post("/:id/watch-ping", async (req, res, next) => {
+  try {
+    const ch = await loadChannelForStream(req, res);
+    if (!ch) return;
+    await touchChannelView(db, req.user.id, ch.id);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET /api/channels/:id/stream/qualities — daftar resolusi dari manifest CDN
 router.get("/:id/stream/qualities", async (req, res, next) => {

@@ -1,4 +1,5 @@
 import { db } from "../config/database.js";
+import { WATCH_ACTIVE_MINUTES } from "./channelViews.js";
 
 function timeAgoId(date) {
   const sec = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -117,20 +118,21 @@ export async function getDashboardStats() {
       WHERE paid_at >= date_trunc('month', NOW()) - INTERVAL '11 months'
       GROUP BY 1 ORDER BY 1
     `),
-    db.query(`
-      SELECT DISTINCT ON (cv.user_id)
-             u.name AS user_name,
-             u.email AS user_email,
-             c.name AS channel_name,
-             cv.viewed_at
-      FROM channel_views cv
-      JOIN users u ON u.id = cv.user_id
-      JOIN channels c ON c.id = cv.channel_id
-      WHERE cv.viewed_at > NOW() - INTERVAL '30 minutes'
-        AND u.role != 'admin'
-      ORDER BY cv.user_id, cv.viewed_at DESC
-      LIMIT 20
-    `),
+    db.query(
+      `SELECT DISTINCT ON (cv.user_id)
+              u.name AS user_name,
+              u.email AS user_email,
+              c.name AS channel_name,
+              cv.viewed_at
+       FROM channel_views cv
+       JOIN users u ON u.id = cv.user_id
+       JOIN channels c ON c.id = cv.channel_id
+       WHERE cv.viewed_at > NOW() - make_interval(mins => $1::int)
+         AND u.role != 'admin'
+       ORDER BY cv.user_id, cv.viewed_at DESC
+       LIMIT 20`,
+      [WATCH_ACTIVE_MINUTES],
+    ),
   ]);
 
   const t = totals.rows[0];

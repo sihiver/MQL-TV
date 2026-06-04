@@ -246,7 +246,7 @@ export default function DashboardPage({ apiOnline }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 800 }}>Sedang Menonton</div>
-                  <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>30 menit terakhir</div>
+                  <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>aktif 3 menit terakhir</div>
                 </div>
                 <Badge label={`${fmt(s.activeStreams)} online`} type="live" />
               </div>
