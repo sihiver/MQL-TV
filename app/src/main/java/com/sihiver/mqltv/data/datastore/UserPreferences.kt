@@ -27,14 +27,39 @@ class UserPreferences @Inject constructor(
 
     suspend fun setToken(token: String?) {
         dataStore.edit { prefs ->
-            if (token == null) prefs.remove(KEY_TOKEN) else prefs[KEY_TOKEN] = token
+            if (token == null) {
+                prefs.remove(KEY_TOKEN)
+            } else {
+                prefs[KEY_TOKEN] = token
+            }
+        }
+    }
+
+    suspend fun setRefreshToken(refreshToken: String?) {
+        dataStore.edit { prefs ->
+            if (refreshToken == null) {
+                prefs.remove(KEY_REFRESH_TOKEN)
+            } else {
+                prefs[KEY_REFRESH_TOKEN] = refreshToken
+            }
         }
     }
 
     suspend fun getTokenOnce(): String? =
         dataStore.data.first()[KEY_TOKEN]
 
+    suspend fun getRefreshTokenOnce(): String? =
+        dataStore.data.first()[KEY_REFRESH_TOKEN]
+
+    suspend fun clearSession() {
+        dataStore.edit { prefs ->
+            prefs.remove(KEY_TOKEN)
+            prefs.remove(KEY_REFRESH_TOKEN)
+        }
+    }
+
     companion object {
         private val KEY_TOKEN = stringPreferencesKey("auth_token")
+        private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
     }
 }

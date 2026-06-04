@@ -10,6 +10,8 @@ import com.sihiver.mqltv.data.network.dto.LoginResponse
 import com.sihiver.mqltv.data.network.dto.MeResponse
 import com.sihiver.mqltv.data.network.dto.SearchChannelsResponse
 import com.sihiver.mqltv.data.network.dto.RegisterDeviceRequest
+import com.sihiver.mqltv.data.network.dto.RefreshTokenRequest
+import com.sihiver.mqltv.data.network.dto.RefreshTokenResponse
 import com.sihiver.mqltv.data.network.dto.StreamQualitiesResponse
 import com.sihiver.mqltv.data.network.dto.StreamResponse
 import com.sihiver.mqltv.data.network.dto.SubscriptionResponse
@@ -24,6 +26,9 @@ interface ApiService {
 
     @POST("api/auth/login")
     suspend fun login(@Body body: LoginRequest): LoginResponse
+
+    @POST("api/auth/refresh")
+    suspend fun refreshToken(@Body body: RefreshTokenRequest): RefreshTokenResponse
 
     @POST("api/auth/logout")
     suspend fun logout()

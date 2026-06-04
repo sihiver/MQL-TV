@@ -4,6 +4,15 @@ import com.google.gson.annotations.SerializedName
 
 data class LoginRequest(val email: String, val password: String)
 
+data class RefreshTokenRequest(
+    @SerializedName("refreshToken") val refreshToken: String,
+)
+
+data class RefreshTokenResponse(
+    val token: String,
+    @SerializedName("expiresIn") val expiresIn: Int? = null,
+)
+
 data class LoginResponse(
     val token: String,
     @SerializedName("refreshToken") val refreshToken: String? = null,

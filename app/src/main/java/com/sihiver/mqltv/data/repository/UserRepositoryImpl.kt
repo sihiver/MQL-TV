@@ -6,6 +6,7 @@ import com.sihiver.mqltv.data.datastore.UserPreferences
 import com.sihiver.mqltv.data.network.ApiService
 import com.sihiver.mqltv.data.network.AuthTokenStore
 import com.sihiver.mqltv.data.network.dto.LoginRequest
+import com.sihiver.mqltv.data.network.dto.RefreshTokenRequest
 import com.sihiver.mqltv.data.network.dto.RegisterDeviceRequest
 import com.sihiver.mqltv.data.network.toProfile
 import com.sihiver.mqltv.data.network.toStatus
@@ -32,8 +33,7 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun login(email: String, password: String): AuthResult {
         val response = api.login(LoginRequest(email.trim().lowercase(), password))
-        tokenStore.set(response.token)
-        userPreferences.setToken(response.token)
+        persistSession(response.token, response.refreshToken)
         val sub = runCatching { api.subscription().toStatus() }.getOrNull()
         val profile = response.user.toProfile(
             expiresLabel = sub?.expiresAt ?: "—",
@@ -45,8 +45,7 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun logout() {
         runCatching { api.logout() }
-        tokenStore.set(null)
-        userPreferences.setToken(null)
+        clearSession()
     }
 
     override suspend fun getProfile(): UserProfile? =
@@ -75,16 +74,14 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun restoreSession(): Boolean {
         val saved = userPreferences.getTokenOnce() ?: return false
         tokenStore.set(saved)
-        return runCatching {
-            api.me()
-            refreshDevicePresence()
-            true
-        }.getOrElse {
-            if (it is HttpException && it.code() == 401) {
-                tokenStore.set(null)
-                userPreferences.setToken(null)
+
+        return when (verifySessionOnline()) {
+            SessionVerifyResult.Valid -> true
+            SessionVerifyResult.Invalid -> {
+                clearSession()
+                false
             }
-            false
+            SessionVerifyResult.Transient -> true
         }
     }
 
@@ -100,5 +97,57 @@ class UserRepositoryImpl @Inject constructor(
                 ),
             )
         }
+    }
+
+    private suspend fun verifySessionOnline(): SessionVerifyResult =
+        runCatching {
+            api.me()
+            refreshDevicePresence()
+            SessionVerifyResult.Valid
+        }.getOrElse { error ->
+            when (error) {
+                is HttpException -> when (error.code()) {
+                    401 -> tryRefreshAccessToken()
+                    403 -> SessionVerifyResult.Invalid
+                    else -> SessionVerifyResult.Transient
+                }
+                else -> SessionVerifyResult.Transient
+            }
+        }
+
+    private suspend fun tryRefreshAccessToken(): SessionVerifyResult {
+        val refresh = userPreferences.getRefreshTokenOnce() ?: return SessionVerifyResult.Invalid
+        return runCatching {
+            val response = api.refreshToken(RefreshTokenRequest(refresh))
+            persistSession(response.token, refreshToken = null)
+            SessionVerifyResult.Valid
+        }.getOrElse { error ->
+            when (error) {
+                is HttpException -> when (error.code()) {
+                    401, 403 -> SessionVerifyResult.Invalid
+                    else -> SessionVerifyResult.Transient
+                }
+                else -> SessionVerifyResult.Transient
+            }
+        }
+    }
+
+    private suspend fun persistSession(token: String, refreshToken: String?) {
+        tokenStore.set(token)
+        userPreferences.setToken(token)
+        if (refreshToken != null) {
+            userPreferences.setRefreshToken(refreshToken)
+        }
+    }
+
+    private suspend fun clearSession() {
+        tokenStore.set(null)
+        userPreferences.clearSession()
+    }
+
+    private enum class SessionVerifyResult {
+        Valid,
+        Invalid,
+        Transient,
     }
 }

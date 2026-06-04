@@ -145,6 +145,54 @@ router.post("/admin/login", async (req, res, next) => {
   }
 });
 
+// POST /api/auth/refresh — perpanjang access token (app TV)
+router.post("/refresh", async (req, res, next) => {
+  try {
+    const refreshToken = req.body.refreshToken || req.body.refresh_token;
+    if (!refreshToken) {
+      return res.status(400).json({ error: "Refresh token wajib diisi" });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    } catch {
+      return res.status(401).json({ error: "Refresh token tidak valid atau kadaluarsa" });
+    }
+
+    const stored = await redis.get(`refresh:${payload.id}`);
+    if (!stored || stored !== refreshToken) {
+      return res.status(401).json({ error: "Refresh token tidak valid" });
+    }
+
+    const result = await db.query("SELECT * FROM users WHERE id = $1", [payload.id]);
+    const user = result.rows[0];
+    if (!user || user.banned) {
+      await redis.del(`refresh:${payload.id}`);
+      return res.status(403).json({ error: "Akun ini telah diblokir" });
+    }
+
+    const settings = await getServerSettings();
+    if (settings.maintenanceMode && user.role !== "admin") {
+      return res.status(503).json({ error: "Server sedang maintenance" });
+    }
+
+    const expiresIn = await jwtExpiresIn();
+    const token = jwt.sign(
+      { id: user.id, email: user.email, plan: user.plan, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn },
+    );
+
+    res.json({
+      token,
+      expiresIn: parseDurationToSeconds(expiresIn) || 86400,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/auth/logout
 router.post("/logout", authenticate, async (req, res, next) => {
   try {
