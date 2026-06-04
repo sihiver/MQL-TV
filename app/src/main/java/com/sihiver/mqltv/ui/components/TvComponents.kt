@@ -156,9 +156,10 @@ fun ChannelCard(
         shape = RoundedCornerShape(18.dp),
         backgroundColor = Color(0x0AFFFFFF),
         focusedBackgroundColor = channel.color.copy(alpha = 0.2f),
-        unfocusedBorderWidth = 2.dp,
+        unfocusedBorderWidth = 3.dp,
         focusedBorderWidth = 3.dp,
-        focusedScale = 1.08f,
+        focusedScale = 1f,
+        bringIntoViewOnFocus = false,
     ) {
         if (onToggleFav != null) {
             Text(

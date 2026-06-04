@@ -78,12 +78,12 @@ fun ChannelsScreen(
             )
 
             LazyVerticalGrid(
-                columns = GridCells.FixedSize(150.dp),
+                columns = GridCells.FixedSize(162.dp),
                 state = gridState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 32.dp, end = 32.dp, bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(filtered, key = { it.id }) { channel ->
                     val focusRequester = remember(channel.id) {

@@ -44,23 +44,28 @@ fun TvFocusableBox(
     unfocusedBorderWidth: Dp = 1.dp,
     focusedBorderWidth: Dp = 4.dp,
     focusedScale: Float = 1.06f,
+    bringIntoViewOnFocus: Boolean = true,
     onFocused: (() -> Unit)? = null,
     content: @Composable BoxScope.(isFocused: Boolean) -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    // Lebar border tetap agar ukuran layout grid tidak berubah saat fokus pindah
+    val borderWidth = maxOf(focusedBorderWidth, unfocusedBorderWidth)
 
     LaunchedEffect(isFocused) {
         if (isFocused) {
             onFocused?.invoke()
-            bringIntoViewRequester.bringIntoView()
+            if (bringIntoViewOnFocus) {
+                bringIntoViewRequester.bringIntoView()
+            }
         }
     }
 
     val scale by animateFloatAsState(
         targetValue = if (isFocused) focusedScale else 1f,
-        animationSpec = tween(180),
+        animationSpec = tween(120),
         label = "tvFocusScale",
     )
 
@@ -75,11 +80,10 @@ fun TvFocusableBox(
                     scaleX = scale
                     scaleY = scale
                 }
-                // Ring fokus di LUAR clip — selalu terlihat saat pindah item
                 .border(
-                    width = if (isFocused) focusedBorderWidth else unfocusedBorderWidth,
+                    width = borderWidth,
                     color = when {
-                        isFocused -> Color.White
+                        isFocused -> accentColor
                         else -> Color(0x28FFFFFF)
                     },
                     shape = shape,
@@ -87,12 +91,17 @@ fun TvFocusableBox(
                 .then(
                     if (isFocused) {
                         Modifier.border(
-                            width = 2.dp,
-                            color = accentColor,
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = 0.85f),
                             shape = shape,
                         )
                     } else {
-                        Modifier
+                        // Slot border aksen agar layout fokus/non-fokus sama tinggi
+                        Modifier.border(
+                            width = 1.dp,
+                            color = Color.Transparent,
+                            shape = shape,
+                        )
                     },
                 )
                 .clip(shape)
