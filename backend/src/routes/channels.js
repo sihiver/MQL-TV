@@ -160,7 +160,7 @@ router.get("/trending", async (req, res, next) => {
     const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 90);
 
     const access = await resolvePackageAccess(req.user.id);
-    const cacheKey = `channels:trending:v3:${access.planSlug}:${days}:${limit}`;
+    const cacheKey = `channels:trending:v4:${access.planSlug}:${days}:${limit}`;
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 
@@ -173,7 +173,8 @@ router.get("/trending", async (req, res, next) => {
       plan: access.planSlug,
     };
 
-    await redis.setex(cacheKey, 120, JSON.stringify(payload));
+    const cacheTtl = rows.length > 0 ? 120 : 15;
+    await redis.setex(cacheKey, cacheTtl, JSON.stringify(payload));
     res.json(payload);
   } catch (err) {
     next(err);

@@ -142,4 +142,8 @@ class HomeViewModel @Inject constructor(
             refreshFavoritesFromLocal()
         }
     }
+
+    fun refreshFeatured() {
+        loadFeatured()
+    }
 }

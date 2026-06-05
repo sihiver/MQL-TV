@@ -137,6 +137,7 @@ fun AndroidTVApp(
 
     LaunchedEffect(navState.currentScreen) {
         when (navState.currentScreen) {
+            AppScreen.HOME -> homeViewModel.refreshFeatured()
             AppScreen.SETTINGS -> settingsViewModel.refreshAccountData()
             AppScreen.FAVORITES -> favoritesViewModel.onScreenVisible()
             else -> Unit

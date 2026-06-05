@@ -1,5 +1,13 @@
+import { redis } from "../config/redis.js";
+
 /** Jendela "sedang menonton" di dashboard (harus ada ping dalam interval ini). */
 export const WATCH_ACTIVE_MINUTES = 3;
+
+/** Hapus cache trending setelah ada tontonan baru agar unggulan langsung ter-update. */
+export async function invalidateTrendingCache() {
+  const keys = await redis.keys("channels:trending:v*");
+  if (keys?.length) await redis.del(...keys);
+}
 
 /**
  * Catat mulai tontonan (analytics: maks. 1 baris baru per user+channel per 30 menit).
@@ -12,9 +20,12 @@ export async function recordChannelView(db, userId, channelId) {
      RETURNING id`,
     [channelId, userId],
   );
-  if (updated.rowCount > 0) return;
+  if (updated.rowCount > 0) {
+    invalidateTrendingCache().catch(() => {});
+    return;
+  }
 
-  await db.query(
+  const inserted = await db.query(
     `INSERT INTO channel_views (channel_id, user_id)
      SELECT $1, $2
      WHERE NOT EXISTS (
@@ -22,9 +33,13 @@ export async function recordChannelView(db, userId, channelId) {
        WHERE channel_id = $1
          AND user_id = $2
          AND viewed_at > NOW() - INTERVAL '30 minutes'
-     )`,
+     )
+     RETURNING id`,
     [channelId, userId],
   );
+  if (inserted.rowCount > 0) {
+    invalidateTrendingCache().catch(() => {});
+  }
 }
 
 /** Perpanjang sesi tontonan aktif (dipanggil berkala dari app TV). */
@@ -44,13 +59,13 @@ export async function touchChannelView(db, userId, channelId) {
   );
 }
 
-/** Hapus sesi aktif saat user berhenti menonton / app ke background. */
-export async function clearChannelView(db, userId) {
-  await db.query(
-    `DELETE FROM channel_views
-     WHERE user_id = $1 AND viewed_at > NOW() - INTERVAL '10 minutes'`,
-    [userId],
-  );
+/**
+ * User keluar player / app ke background.
+ * Jangan hapus riwayat channel_views — dipakai untuk unggulan/trending.
+ * Dashboard "sedang menonton" otomatis hilang setelah WATCH_ACTIVE_MINUTES tanpa ping.
+ */
+export async function clearChannelView(_db, _userId) {
+  // no-op: riwayat tontonan tetap disimpan untuk perhitungan unggulan
 }
 
 /**
