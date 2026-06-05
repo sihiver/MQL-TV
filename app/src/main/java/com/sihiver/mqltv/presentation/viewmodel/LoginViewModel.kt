@@ -15,7 +15,7 @@ import retrofit2.HttpException
 import javax.inject.Inject
 
 data class LoginUiState(
-    val email: String = "ahmad@email.com",
+    val email: String = "",
     val password: String = "",
     val isLoading: Boolean = false,
     val isCheckingSession: Boolean = true,
@@ -58,15 +58,11 @@ class LoginViewModel @Inject constructor(
 
     fun markLoggedOut() {
         _state.update {
-            it.copy(isLoggedIn = false, isCheckingSession = false, error = null)
-        }
-    }
-
-    fun useDemoAccount() {
-        _state.update {
             it.copy(
-                email = "ahmad@email.com",
-                password = "password123",
+                isLoggedIn = false,
+                isCheckingSession = false,
+                email = "",
+                password = "",
                 error = null,
             )
         }
@@ -83,9 +79,15 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             try {
+                runCatching { userRepository.logout() }
                 loginUseCase(email, password)
                 _state.update {
-                    it.copy(isLoading = false, isLoggedIn = true, error = null)
+                    it.copy(
+                        isLoading = false,
+                        isLoggedIn = true,
+                        password = "",
+                        error = null,
+                    )
                 }
             } catch (e: Exception) {
                 _state.update {

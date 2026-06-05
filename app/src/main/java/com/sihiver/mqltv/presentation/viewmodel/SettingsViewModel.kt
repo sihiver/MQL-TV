@@ -80,11 +80,24 @@ class SettingsViewModel @Inject constructor(
 
     fun refreshAccountData() {
         viewModelScope.launch {
+            val hasToken = userRepository.authToken.first() != null
+            if (!hasToken) {
+                _state.update {
+                    it.copy(
+                        profile = null,
+                        subscription = null,
+                        devices = emptyList(),
+                        channelCount = 0,
+                        isOnline = false,
+                    )
+                }
+                return@launch
+            }
             val channels = runCatching { getChannels("Semua") }.getOrDefault(emptyList())
             val profile = runCatching { userRepository.getProfile() }.getOrNull()
             val sub = checkSubscription()
             val devices = runCatching { deviceRepository.listDevices() }.getOrDefault(emptyList())
-            val online = profile != null || userRepository.authToken.first() != null
+            val online = profile != null || hasToken
             _state.update {
                 it.copy(
                     profile = profile,

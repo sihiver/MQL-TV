@@ -150,7 +150,6 @@ fun AndroidTVApp(
             onEmailChange = loginViewModel::setEmail,
             onPasswordChange = loginViewModel::setPassword,
             onLogin = loginViewModel::login,
-            onUseDemo = loginViewModel::useDemoAccount,
         )
         else -> CompositionLocalProvider(
             LocalClockFormat provides settingsState.settings.clockFormat,

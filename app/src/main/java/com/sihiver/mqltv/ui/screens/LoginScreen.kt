@@ -50,7 +50,6 @@ fun LoginScreen(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onLogin: () -> Unit,
-    onUseDemo: () -> Unit,
 ) {
     Box(
         modifier = Modifier
