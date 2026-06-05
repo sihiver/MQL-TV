@@ -33,6 +33,7 @@ import com.sihiver.mqltv.ui.screens.ChannelsScreen
 import com.sihiver.mqltv.ui.screens.EpgScreen
 import com.sihiver.mqltv.ui.screens.FavoritesScreen
 import com.sihiver.mqltv.ui.screens.HomeScreen
+import com.sihiver.mqltv.ui.screens.ExpiredScreen
 import com.sihiver.mqltv.ui.screens.LoginScreen
 import com.sihiver.mqltv.ui.screens.PlayerScreen
 import com.sihiver.mqltv.ui.screens.SearchScreen
@@ -200,6 +201,17 @@ fun AndroidTVApp(
             }
 
             AppScreen.PLAYER -> {
+                if (playerState.subscriptionExpired) {
+                    ExpiredScreen(
+                        expiresAt = settingsState.subscription?.expiresAt,
+                        onBack = navViewModel::closePlayer,
+                        onLogout = {
+                            playerViewModel.onLeavePlayer()
+                            settingsViewModel.logout { loginViewModel.markLoggedOut() }
+                        },
+                    )
+                    return@AppWrap
+                }
                 val playing = playerState.playingChannel ?: navState.playingChannel ?: return@AppWrap
                 PlayerScreen(
                     playing = playing,

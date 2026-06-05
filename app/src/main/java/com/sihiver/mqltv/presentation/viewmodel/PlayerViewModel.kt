@@ -11,6 +11,8 @@ import com.sihiver.mqltv.domain.model.LiveEpgNow
 import com.sihiver.mqltv.domain.model.StreamQualityOption
 import com.sihiver.mqltv.domain.repository.StreamInfo
 import com.sihiver.mqltv.domain.repository.StreamRepository
+import com.sihiver.mqltv.domain.error.SubscriptionExpiredException
+import com.sihiver.mqltv.domain.usecase.CheckSubscriptionUseCase
 import com.sihiver.mqltv.domain.usecase.GetChannelsUseCase
 import com.sihiver.mqltv.domain.usecase.GetEPGUseCase
 import com.sihiver.mqltv.domain.usecase.ManageFavoriteUseCase
@@ -46,6 +48,7 @@ data class PlayerUiState(
     val selectedQualityLabel: String = "AUTO",
     val selectedQualityHeight: Int? = null,
     val masterStreamUrl: String? = null,
+    val subscriptionExpired: Boolean = false,
 )
 
 fun qualityButtonLabel(label: String): String = when {
@@ -64,6 +67,7 @@ class PlayerViewModel @Inject constructor(
     private val syncContent: SyncContentUseCase,
     private val streamRepository: StreamRepository,
     private val manageFavorite: ManageFavoriteUseCase,
+    private val checkSubscription: CheckSubscriptionUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlayerUiState())
@@ -107,11 +111,24 @@ class PlayerViewModel @Inject constructor(
                 selectedQualityLabel = "AUTO",
                 selectedQualityHeight = null,
                 masterStreamUrl = null,
+                subscriptionExpired = false,
             )
         }
 
         loadChannelJob = viewModelScope.launch {
             syncChannelsInBackground()
+            val sub = withContext(Dispatchers.IO) { checkSubscription() }
+            if (!sub.isActive) {
+                _state.update {
+                    it.copy(
+                        playingChannel = channel,
+                        subscriptionExpired = true,
+                        isPlaying = false,
+                    )
+                }
+                return@launch
+            }
+
             runCatching {
                 val domain = withContext(Dispatchers.Default) {
                     ChannelMapper.toDomain(channel)
@@ -134,11 +151,24 @@ class PlayerViewModel @Inject constructor(
                         streamInfo = stream,
                         isPlaying = true,
                         masterStreamUrl = stream.url,
+                        subscriptionExpired = false,
                     )
                 }
                 startWatchPing(channel.id)
+            }.onFailure { e ->
+                if (e is SubscriptionExpiredException) {
+                    _state.update {
+                        it.copy(
+                            playingChannel = channel,
+                            subscriptionExpired = true,
+                            isPlaying = false,
+                        )
+                    }
+                }
             }
-            startLiveEpgPolling(channel.id)
+            if (!_state.value.subscriptionExpired) {
+                startLiveEpgPolling(channel.id)
+            }
         }
     }
 
@@ -279,6 +309,7 @@ class PlayerViewModel @Inject constructor(
         setPlaying(false)
         liveEpgJob?.cancel()
         stopWatchPing()
+        _state.update { it.copy(subscriptionExpired = false) }
     }
 
     /** Ambil ulang URL stream (token baru) tanpa reset UI channel. */

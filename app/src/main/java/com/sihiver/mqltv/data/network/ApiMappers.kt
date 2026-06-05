@@ -76,7 +76,7 @@ fun MeResponse.toProfile(expiresLabel: String = "—", daysRemaining: Int = 0): 
     )
 
 fun SubscriptionResponse.toStatus(): SubscriptionStatus {
-    val active = status == "active"
+    val active = status.equals("active", ignoreCase = true)
     val expires = expiresAt?.let { parseInstant(it) }
     val days = expires?.let { exp ->
         val now = Instant.now()

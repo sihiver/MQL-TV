@@ -8,7 +8,9 @@ import com.sihiver.mqltv.domain.model.StreamQualityOption
 import com.sihiver.mqltv.domain.repository.StreamFormat
 import com.sihiver.mqltv.domain.repository.StreamInfo
 import com.sihiver.mqltv.domain.repository.StreamQualitiesResult
+import com.sihiver.mqltv.domain.error.SubscriptionExpiredException
 import com.sihiver.mqltv.domain.repository.StreamRepository
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,7 +22,7 @@ class StreamRepositoryImpl @Inject constructor(
 
     override suspend fun resolveStream(channel: Channel): StreamInfo {
         if (tokenStore.token != null) {
-            runCatching {
+            try {
                 val res = api.getStream(channel.id)
                 val cleanUrl = IptvStreamUrl.resolvePlaybackUrl(res.streamUrl)
                 return StreamInfo(
@@ -32,6 +34,9 @@ class StreamRepositoryImpl @Inject constructor(
                     drmType = res.drmType,
                     drmKey = res.drmKey,
                 )
+            } catch (e: HttpException) {
+                if (e.code() == 403) throw SubscriptionExpiredException()
+                throw e
             }
         }
         val url = channel.streamUrl.ifBlank { DEMO_HLS }
