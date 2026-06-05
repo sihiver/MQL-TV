@@ -188,10 +188,10 @@ fun ExpiredScreen(
                 letterSpacing = 6.sp,
             )
             Spacer(Modifier.height(28.dp))
-            Text("EXPIRED", fontSize = 110.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = 8.sp)
+            Text("EXPIRED", fontSize = 58.sp, fontWeight = FontWeight.Black, color = Color.White, letterSpacing = 8.sp)
             Text(
                 "Langganan Berakhir",
-                fontSize = 48.sp,
+                fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
                 color = ExpiredRedDim,
                 letterSpacing = 16.sp,
@@ -211,11 +211,11 @@ fun ExpiredScreen(
                     if (!expiresAt.isNullOrBlank() && expiresAt != "—") append("\n\nBerakhir: $expiresAt")
                 },
                 color = Color(0xFFAAAAAA),
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 fontFamily = FontFamily.Monospace,
-                letterSpacing = 2.sp,
+                letterSpacing = 1.sp,
                 textAlign = TextAlign.Center,
-                lineHeight = 32.sp,
+                lineHeight = 30.sp,
             )
             Spacer(Modifier.height(40.dp))
             Box(
