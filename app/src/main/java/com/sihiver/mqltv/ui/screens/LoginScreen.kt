@@ -145,30 +145,8 @@ fun LoginScreen(
                     )
                 }
             }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                TvFocusableBox(
-                    onClick = onUseDemo,
-                    modifier = Modifier.weight(1f),
-                    accentColor = Color(0xFF63B3ED),
-                    shape = RoundedCornerShape(10.dp),
-                    backgroundColor = Color(0x1863B3ED),
-                ) {
-                    Text(
-                        text = "Akun demo",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF63B3ED),
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    )
-                }
-            }
-
             Text(
-                text = "Server: ${BuildConfig.API_BASE_URL}\nDemo: ahmad@email.com / password123",
+                text = "Server: ${BuildConfig.API_BASE_URL}\n",
                 fontSize = 10.sp,
                 color = Color(0xFF555555),
                 textAlign = TextAlign.Center,
@@ -183,14 +161,14 @@ private fun LoginBrand() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
-                text = "NUSA",
+                text = "MQL",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Black,
                 color = Color.White,
                 letterSpacing = 4.sp,
             )
             Text(
-                text = "VISION",
+                text = "TV",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Black,
                 color = AccentOrange,
