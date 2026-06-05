@@ -160,7 +160,7 @@ router.get("/trending", async (req, res, next) => {
     const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 90);
 
     const access = await resolvePackageAccess(req.user.id);
-    const cacheKey = `channels:trending:v2:${access.planSlug}:${days}:${limit}`;
+    const cacheKey = `channels:trending:v3:${access.planSlug}:${days}:${limit}`;
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 

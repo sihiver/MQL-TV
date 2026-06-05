@@ -62,7 +62,10 @@ export async function getTrendingChannels(db, access, { limit = 10, days = 30 } 
   }
 
   const params = [];
-  const conditions = ["c.active = true"];
+  const conditions = [
+    "c.active = true",
+    "COALESCE(c.is_live, true) = true",
+  ];
 
   if (!access.includesAll) {
     params.push(access.packageId);
@@ -94,14 +97,14 @@ export async function getTrendingChannels(db, access, { limit = 10, days = 30 } 
        SELECT *,
               ROW_NUMBER() OVER (
                 PARTITION BY LOWER(TRIM(name))
-                ORDER BY views_30d DESC, viewer_count DESC, id ASC
+                ORDER BY views_30d DESC, id ASC
               ) AS rn
        FROM channel_stats
      )
      SELECT id, name, category, logo_url, is_live, viewer_count, views_30d
      FROM deduped
-     WHERE rn = 1
-     ORDER BY views_30d DESC, viewer_count DESC, name ASC
+     WHERE rn = 1 AND views_30d > 0
+     ORDER BY views_30d DESC, name ASC
      LIMIT $${limitIdx}`,
     params,
   );
