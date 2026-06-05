@@ -2,9 +2,10 @@ package com.sihiver.mqltv.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sihiver.mqltv.data.datastore.UserPreferences
 import com.sihiver.mqltv.domain.repository.FavoriteRepository
-import com.sihiver.mqltv.domain.usecase.LoginUseCase
 import com.sihiver.mqltv.domain.repository.UserRepository
+import com.sihiver.mqltv.domain.usecase.LoginUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +29,7 @@ class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
     private val userRepository: UserRepository,
     private val favoriteRepository: FavoriteRepository,
+    private val userPreferences: UserPreferences,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState())
@@ -35,6 +37,7 @@ class LoginViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val saved = userPreferences.getLoginCredentialsOnce()
             val restored = userRepository.restoreSession()
             if (restored) {
                 launch { runCatching { favoriteRepository.syncFromApi() } }
@@ -43,6 +46,8 @@ class LoginViewModel @Inject constructor(
                 it.copy(
                     isCheckingSession = false,
                     isLoggedIn = restored,
+                    email = if (!restored) saved?.email.orEmpty() else it.email,
+                    password = if (!restored) saved?.password.orEmpty() else it.password,
                 )
             }
         }
@@ -57,14 +62,17 @@ class LoginViewModel @Inject constructor(
     }
 
     fun markLoggedOut() {
-        _state.update {
-            it.copy(
-                isLoggedIn = false,
-                isCheckingSession = false,
-                email = "",
-                password = "",
-                error = null,
-            )
+        viewModelScope.launch {
+            val saved = userPreferences.getLoginCredentialsOnce()
+            _state.update {
+                it.copy(
+                    isLoggedIn = false,
+                    isCheckingSession = false,
+                    email = saved?.email.orEmpty(),
+                    password = saved?.password.orEmpty(),
+                    error = null,
+                )
+            }
         }
     }
 
@@ -81,11 +89,11 @@ class LoginViewModel @Inject constructor(
             try {
                 runCatching { userRepository.logout() }
                 loginUseCase(email, password)
+                userPreferences.saveLoginCredentials(email, password)
                 _state.update {
                     it.copy(
                         isLoading = false,
                         isLoggedIn = true,
-                        password = "",
                         error = null,
                     )
                 }

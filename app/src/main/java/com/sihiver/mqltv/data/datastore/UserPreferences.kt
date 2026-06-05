@@ -58,8 +58,30 @@ class UserPreferences @Inject constructor(
         }
     }
 
+    suspend fun saveLoginCredentials(email: String, password: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_SAVED_EMAIL] = email.trim().lowercase()
+            prefs[KEY_SAVED_PASSWORD] = password
+        }
+    }
+
+    suspend fun getLoginCredentialsOnce(): SavedLoginCredentials? {
+        val prefs = dataStore.data.first()
+        val email = prefs[KEY_SAVED_EMAIL]?.trim().orEmpty()
+        val password = prefs[KEY_SAVED_PASSWORD].orEmpty()
+        if (email.isBlank()) return null
+        return SavedLoginCredentials(email = email, password = password)
+    }
+
     companion object {
         private val KEY_TOKEN = stringPreferencesKey("auth_token")
         private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
+        private val KEY_SAVED_EMAIL = stringPreferencesKey("saved_login_email")
+        private val KEY_SAVED_PASSWORD = stringPreferencesKey("saved_login_password")
     }
 }
+
+data class SavedLoginCredentials(
+    val email: String,
+    val password: String,
+)
