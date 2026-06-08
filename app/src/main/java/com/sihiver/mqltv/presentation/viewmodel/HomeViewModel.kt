@@ -23,7 +23,7 @@ data class HomeUiState(
     val favoriteChannels: List<Channel> = emptyList(),
     val favorites: List<Int> = emptyList(),
     val restoreFocusChannelId: Int? = null,
-    val isLoading: Boolean = false,
+    val isLoadingFeatured: Boolean = false,
 )
 
 @HiltViewModel
@@ -58,7 +58,6 @@ class HomeViewModel @Inject constructor(
             runCatching { favoriteRepository.syncFromApi() }
             refreshFavoritesFromLocal()
         }
-        loadFeatured()
     }
 
     private suspend fun refreshFavoritesFromLocal() {
@@ -69,7 +68,6 @@ class HomeViewModel @Inject constructor(
             it.copy(
                 favorites = ids,
                 favoriteChannels = favoriteChannels,
-                isLoading = false,
             )
         }
     }
@@ -98,6 +96,7 @@ class HomeViewModel @Inject constructor(
 
     private fun loadFeatured() {
         viewModelScope.launch {
+            _state.update { it.copy(isLoadingFeatured = true) }
             runCatching {
                 val featured = ChannelMapper.toUiList(
                     getTrendingChannels(days = 30, limit = 10),
@@ -114,11 +113,11 @@ class HomeViewModel @Inject constructor(
                     it.copy(
                         featuredChannels = featured,
                         favoriteChannels = favoriteChannels,
-                        isLoading = false,
+                        isLoadingFeatured = false,
                     )
                 }
             }.onFailure {
-                _state.update { it.copy(isLoading = false) }
+                _state.update { it.copy(isLoadingFeatured = false) }
             }
         }
     }

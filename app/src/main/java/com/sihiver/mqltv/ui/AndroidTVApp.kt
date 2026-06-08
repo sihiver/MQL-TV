@@ -114,9 +114,10 @@ fun AndroidTVApp(
         }
     }
 
-    LaunchedEffect(loginState.isLoggedIn) {
-        if (loginState.isLoggedIn) {
+    LaunchedEffect(loginState.isLoggedIn, loginState.isCheckingSession) {
+        if (!loginState.isCheckingSession && loginState.isLoggedIn) {
             settingsViewModel.refreshSubscription()
+            homeViewModel.refreshFeatured()
             homeViewModel.refreshFavorites()
         }
     }
@@ -135,7 +136,8 @@ fun AndroidTVApp(
         }
     }
 
-    LaunchedEffect(navState.currentScreen) {
+    LaunchedEffect(navState.currentScreen, loginState.isLoggedIn) {
+        if (!loginState.isLoggedIn) return@LaunchedEffect
         when (navState.currentScreen) {
             AppScreen.HOME -> homeViewModel.refreshFeatured()
             AppScreen.SETTINGS -> settingsViewModel.refreshAccountData()
@@ -159,12 +161,8 @@ fun AndroidTVApp(
         AppWrap {
         when (navState.currentScreen) {
             AppScreen.HOME -> {
-                if (
-                    homeState.isLoading &&
-                    homeState.featuredChannels.isEmpty() &&
-                    homeState.favoriteChannels.isEmpty()
-                ) {
-                    LoadingBox()
+                if (homeState.isLoadingFeatured && homeState.featuredChannels.isEmpty()) {
+                    LoadingBox("Memuat channel unggulan…")
                     return@AppWrap
                 }
                 HomeScreen(
