@@ -83,6 +83,7 @@ import com.sihiver.mqltv.ui.theme.AccentOrange
 import com.sihiver.mqltv.ui.theme.SidebarBg
 import com.sihiver.mqltv.ui.theme.TextDim
 import com.sihiver.mqltv.ui.theme.TextMuted
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val FULLSCREEN_OVERLAY_HIDE_MS = 5_000L
 private const val CHANNEL_NUMBER_INPUT_MS = 2_000L
@@ -129,7 +130,7 @@ fun PlayerScreen(
 
     LaunchedEffect(channelListPanelVisible) {
         if (channelListPanelVisible && !showChannelList) {
-            delay(1)
+            delay(1.milliseconds)
             onOpenChannelList()
         }
     }
@@ -303,7 +304,7 @@ private fun VideoArea(
 
     LaunchedEffect(channelNumberBuffer, channelNumberInputGeneration) {
         if (channelNumberBuffer.isEmpty()) return@LaunchedEffect
-        delay(CHANNEL_NUMBER_INPUT_MS)
+        delay(CHANNEL_NUMBER_INPUT_MS.milliseconds)
         applyChannelNumber(channelNumberBuffer)
         channelNumberBuffer = ""
     }
@@ -316,14 +317,14 @@ private fun VideoArea(
 
     LaunchedEffect(showOverlay, overlayHideGeneration) {
         if (!showOverlay) return@LaunchedEffect
-        delay(FULLSCREEN_OVERLAY_HIDE_MS)
+        delay(FULLSCREEN_OVERLAY_HIDE_MS.milliseconds)
         showOverlay = false
         videoSurfaceFocus.requestFocus()
     }
 
     LaunchedEffect(showOverlay) {
         if (!showOverlay) return@LaunchedEffect
-        delay(80)
+        delay(80.milliseconds)
         channelListButtonFocus.requestFocus()
     }
 
@@ -818,7 +819,7 @@ private fun QualityPickerOverlay(
 
   LaunchedEffect(qualities, loading) {
     if (!loading && qualities.isNotEmpty()) {
-      delay(80)
+      delay(80.milliseconds)
       firstItemFocus.requestFocus()
     }
   }
@@ -1089,7 +1090,7 @@ private fun ChannelListPanel(
 
     LaunchedEffect(scrollToPlayingOnOpen, playingIndex) {
         if (!scrollToPlayingOnOpen) return@LaunchedEffect
-        delay(48)
+        delay(48.milliseconds)
         if (playingIndex > 0) {
             runCatching { listState.scrollToItem(playingIndex) }
         }

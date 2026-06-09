@@ -10,29 +10,50 @@ function requestHeaders(userAgent, referer) {
   return headers;
 }
 
-function labelFromHeight(height) {
-  if (!height) return "Kualitas";
-  if (height >= 1080) return "1080p";
-  if (height >= 720) return "720p";
-  if (height >= 480) return "480p";
-  if (height >= 360) return "360p";
-  return `${height}p`;
+ function labelFromHeight(height, bandwidth) {
+  if (height) {
+    if (height >= 1080) return "1080p";
+    if (height >= 720) return "720p";
+    if (height >= 480) return "480p";
+    if (height >= 360) return "360p";
+    return `${height}p`;
+  }
+
+  // Fallback to bandwidth-based label if height not available
+  if (bandwidth) {
+    if (bandwidth >= 5000000) return "HD";
+    if (bandwidth >= 2000000) return "SD";
+    return "Kualitas";
+  }
+
+  return "Kualitas";
 }
 
 /** Satu entri per resolusi; jika ada beberapa variant, ambil bandwidth tertinggi. */
 function dedupeQualitiesByHeight(qualities) {
-  const byKey = new Map();
+  if (!qualities.length) return [];
+
+  const byHeight = new Map();
+  const byBandwidth = new Map();
 
   for (const q of qualities) {
-    const key =
-      q.height != null ? `h${q.height}` : `bw${q.bandwidth ?? byKey.size}`;
-    const existing = byKey.get(key);
-    if (!existing || (q.bandwidth || 0) > (existing.bandwidth || 0)) {
-      byKey.set(key, q);
+    if (q.height != null) {
+      // Group by height, keep highest bandwidth
+      const key = `h${q.height}`;
+      const existing = byHeight.get(key);
+      if (!existing || (q.bandwidth || 0) > (existing.bandwidth || 0)) {
+        byHeight.set(key, q);
+      }
+    } else if (q.bandwidth != null) {
+      // If no height, use bandwidth as key
+      const key = `bw${q.bandwidth}`;
+      byBandwidth.set(key, q);
     }
   }
 
-  return [...byKey.values()].sort((a, b) => (b.height || 0) - (a.height || 0));
+  // Combine: height-based first, then bandwidth-based
+  const result = [...byHeight.values(), ...byBandwidth.values()];
+  return result.sort((a, b) => (b.height || 0) - (a.height || 0) || (b.bandwidth || 0) - (a.bandwidth || 0));
 }
 
 function resolveUrl(uri, baseUrl) {
@@ -71,7 +92,7 @@ function parseHlsQualities(text, masterUrl) {
     const id = height ? `h${height}` : `bw${bandwidth || qualities.length}`;
     qualities.push({
       id,
-      label: labelFromHeight(height),
+      label: labelFromHeight(height, bandwidth),
       height,
       bandwidth,
       url: abs,
@@ -105,12 +126,29 @@ async function parseDashQualities(xml, manifestUrl) {
       const mime = (set.mimeType || set.contentType || "").toLowerCase();
       if (mime && !mime.includes("video")) continue;
 
+      // Get dimensions from AdaptationSet if not specified per Representation
+      const setWidth = set.width ? parseInt(set.width, 10) : null;
+      const setHeight = set.height ? parseInt(set.height, 10) : null;
+
       const reps = []
         .concat(set.Representation || [])
         .filter(Boolean);
 
       for (const rep of reps) {
-        const height = rep.height ? parseInt(rep.height, 10) : null;
+        // Extract height, with fallbacks
+        let height = rep.height ? parseInt(rep.height, 10) : null;
+        let width = rep.width ? parseInt(rep.width, 10) : null;
+
+        // Fallback to AdaptationSet-level dimensions if not in Representation
+        if (!height) height = setHeight;
+        if (!width) width = setWidth;
+
+        // Fallback: calculate height from width if only width is available
+        if (!height && width) {
+          // Assume 16:9 aspect ratio as default
+          height = Math.round(width * 9 / 16);
+        }
+
         const bandwidth = rep.bandwidth ? parseInt(rep.bandwidth, 10) : null;
 
         let path = "";
@@ -138,7 +176,7 @@ async function parseDashQualities(xml, manifestUrl) {
 
         qualities.push({
           id: height ? `h${height}` : `bw${bandwidth || qualities.length}`,
-          label: labelFromHeight(height),
+          label: labelFromHeight(height, bandwidth),
           height,
           bandwidth,
           url: abs || manifestUrl,
@@ -186,6 +224,16 @@ export async function fetchStreamQualities(manifestUrl, userAgent, referer, user
   }
 
   variants = dedupeQualitiesByHeight(variants);
+
+  // Debug: log variants found
+  if (variants.length === 0) {
+    console.warn("[streamQualities] Tidak ada variant ditemukan untuk", cleanUrl);
+  } else {
+    console.info("[streamQualities] Ditemukan", variants.length, "variant(s) untuk", cleanUrl);
+    variants.forEach(v => {
+      console.info(`  - ${v.label} (height: ${v.height}, bandwidth: ${v.bandwidth})`);
+    });
+  }
 
   const withToken = variants.map((v) => {
     const { streamUrl } = generateStreamToken(v.url, userId);
