@@ -2,16 +2,24 @@ package com.sihiver.mqltv.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -28,6 +36,7 @@ import com.sihiver.mqltv.presentation.viewmodel.PlayerViewModel
 import com.sihiver.mqltv.presentation.viewmodel.SearchViewModel
 import com.sihiver.mqltv.presentation.viewmodel.SettingsViewModel
 import com.sihiver.mqltv.ui.components.AppWrap
+import com.sihiver.mqltv.ui.components.TvButton
 import com.sihiver.mqltv.ui.components.ToastNotification
 import com.sihiver.mqltv.ui.screens.ChannelsScreen
 import com.sihiver.mqltv.ui.screens.EpgScreen
@@ -68,6 +77,8 @@ fun AndroidTVApp(
     val subscription = settingsState.subscription
     val currentScreenState = rememberUpdatedState(navState.currentScreen)
     val lifecycleOwner = LocalLifecycleOwner.current
+    var homeFeaturedRequested by remember { mutableStateOf(false) }
+    var homeFeaturedTimedOut by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -117,6 +128,8 @@ fun AndroidTVApp(
 
     LaunchedEffect(loginState.isLoggedIn, loginState.isCheckingSession) {
         if (!loginState.isCheckingSession && loginState.isLoggedIn) {
+            homeFeaturedRequested = true
+            homeFeaturedTimedOut = false
             settingsViewModel.refreshSubscription()
             homeViewModel.refreshFeatured()
             homeViewModel.refreshFavorites()
@@ -162,10 +175,39 @@ fun AndroidTVApp(
     LaunchedEffect(navState.currentScreen, loginState.isLoggedIn) {
         if (!loginState.isLoggedIn) return@LaunchedEffect
         when (navState.currentScreen) {
-            AppScreen.HOME -> homeViewModel.refreshFeatured()
+            AppScreen.HOME -> {
+                homeFeaturedRequested = true
+                homeFeaturedTimedOut = false
+                homeViewModel.refreshFeatured()
+            }
             AppScreen.SETTINGS -> settingsViewModel.refreshAccountData()
             AppScreen.FAVORITES -> favoritesViewModel.onScreenVisible()
             else -> Unit
+        }
+    }
+
+    LaunchedEffect(navState.currentScreen, homeState.isLoadingFeatured, homeState.featuredChannels.isEmpty()) {
+        if (navState.currentScreen != AppScreen.HOME) {
+            homeFeaturedRequested = false
+            homeFeaturedTimedOut = false
+            return@LaunchedEffect
+        }
+
+        if (homeState.featuredChannels.isNotEmpty()) {
+            homeFeaturedRequested = false
+            homeFeaturedTimedOut = false
+            return@LaunchedEffect
+        }
+
+        if (!homeFeaturedRequested || !homeState.isLoadingFeatured) return@LaunchedEffect
+
+        delay(6000)
+        if (navState.currentScreen == AppScreen.HOME &&
+            homeFeaturedRequested &&
+            homeState.isLoadingFeatured &&
+            homeState.featuredChannels.isEmpty()
+        ) {
+            homeFeaturedTimedOut = true
         }
     }
 
@@ -184,10 +226,28 @@ fun AndroidTVApp(
         AppWrap {
         when (navState.currentScreen) {
             AppScreen.HOME -> {
-                if (homeState.isLoadingFeatured && homeState.featuredChannels.isEmpty()) {
-                    LoadingBox("Memuat channel unggulan…")
+                // Jangan tampilkan Home sampai featured channels ter-load.
+                if (homeState.featuredChannels.isEmpty()) {
+                    if (homeFeaturedTimedOut) {
+                        LoadingBox(
+                            message = "Gagal memuat channel unggulan",
+                            subtitle = "Periksa koneksi lalu coba lagi.",
+                            retryLabel = "Coba lagi",
+                            onRetry = {
+                                homeFeaturedTimedOut = false
+                                homeFeaturedRequested = true
+                                homeViewModel.refreshFeatured()
+                            },
+                        )
+                    } else {
+                        LoadingBox(
+                            message = "Memuat channel unggulan…",
+                            subtitle = "Menyiapkan beranda sebelum tampil.",
+                        )
+                    }
                     return@AppWrap
                 }
+
                 HomeScreen(
                     featuredChannels = homeState.featuredChannels,
                     recentChannels = homeState.recentChannels,
@@ -234,9 +294,21 @@ fun AndroidTVApp(
                     )
                     return@AppWrap
                 }
-                val playing = playerState.playingChannel ?: navState.playingChannel ?: return@AppWrap
+                // Jika channel sedang diproses (streamUrl kosong), tampilkan loading
+                val playingCandidate = playerState.playingChannel ?: navState.playingChannel
+                if (playingCandidate == null) {
+                    LoadingBox("Memuat channel…")
+                    return@AppWrap
+                }
+
+                // Jika kita belum punya URL stream (masih dummy), tunggu dulu
+                if (playerState.playingChannel?.streamUrl.isNullOrBlank()) {
+                    LoadingBox("Memuat channel…")
+                    return@AppWrap
+                }
+
                 PlayerScreen(
-                    playing = playing,
+                    playing = playerState.playingChannel!!,
                     channels = playerState.channels,
                     favorites = playerState.favorites,
                     isPlaying = playerState.isPlaying,
@@ -344,11 +416,34 @@ fun AndroidTVApp(
 }
 
 @Composable
-private fun LoadingBox(message: String = "Memuat NusaVision…") {
+private fun LoadingBox(
+    message: String = "Memuat NusaVision…",
+    subtitle: String? = null,
+    retryLabel: String? = null,
+    onRetry: (() -> Unit)? = null,
+) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        Text(message, color = Color.White)
+        androidx.compose.foundation.layout.Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(text = "⏳", fontSize = 44.sp, color = Color.White)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = message, color = Color.White)
+            subtitle?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = it, color = Color(0xFFB8C2D1), fontSize = 13.sp)
+            }
+            if (retryLabel != null && onRetry != null) {
+                Spacer(modifier = Modifier.height(18.dp))
+                TvButton(
+                    text = retryLabel,
+                    onClick = onRetry,
+                    primary = true,
+                )
+            }
+        }
     }
 }
