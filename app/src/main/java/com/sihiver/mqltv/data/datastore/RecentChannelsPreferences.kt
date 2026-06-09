@@ -36,7 +36,7 @@ class RecentChannelsPreferences @Inject constructor(
     private val listType = object : TypeToken<List<RecentChannelEntry>>() {}.type
 
     val recentChannels: Flow<List<RecentChannelEntry>> = dataStore.data.map { prefs ->
-        prefs[KEY_RECENT].parseList()
+        prefs[KEY_RECENT].parseList().distinctBy { it.id }
     }
 
     suspend fun addChannel(entry: RecentChannelEntry) {
@@ -44,12 +44,13 @@ class RecentChannelsPreferences @Inject constructor(
             val current = prefs[KEY_RECENT].parseList().toMutableList()
             current.removeAll { it.id == entry.id }
             current.add(0, entry)
-            prefs[KEY_RECENT] = gson.toJson(current.take(MAX_RECENT))
+            val cleaned = current.distinctBy { it.id }
+            prefs[KEY_RECENT] = gson.toJson(cleaned.take(MAX_RECENT))
         }
     }
 
     suspend fun getOnce(): List<RecentChannelEntry> =
-        dataStore.data.first()[KEY_RECENT].parseList()
+        dataStore.data.first()[KEY_RECENT].parseList().distinctBy { it.id }
 
     suspend fun clear() {
         dataStore.edit { it.remove(KEY_RECENT) }
