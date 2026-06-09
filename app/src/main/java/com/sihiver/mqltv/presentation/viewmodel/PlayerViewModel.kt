@@ -247,6 +247,7 @@ class PlayerViewModel @Inject constructor(
 
     fun openQualityPicker() {
         val channelId = _state.value.playingChannel?.id ?: return
+        val masterUrl = _state.value.masterStreamUrl
         _state.update {
             it.copy(
                 showQualityPicker = true,
@@ -255,13 +256,13 @@ class PlayerViewModel @Inject constructor(
             )
         }
         viewModelScope.launch {
-            runCatching { streamRepository.fetchQualities(channelId) }
+            runCatching { streamRepository.fetchQualities(channelId, masterUrl) }
                 .onSuccess { result ->
                     _state.update {
                         it.copy(
                             qualities = result.options,
                             qualitiesLoading = false,
-                            masterStreamUrl = result.masterUrl,
+                            masterStreamUrl = result.masterUrl.ifBlank { masterUrl },
                         )
                     }
                 }

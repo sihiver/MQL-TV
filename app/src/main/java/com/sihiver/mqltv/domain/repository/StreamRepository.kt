@@ -22,7 +22,7 @@ data class StreamQualitiesResult(
 
 interface StreamRepository {
     suspend fun resolveStream(channel: Channel): StreamInfo
-    suspend fun fetchQualities(channelId: Int): StreamQualitiesResult
+    suspend fun fetchQualities(channelId: Int, masterUrl: String? = null): StreamQualitiesResult
     /** Perpanjang sesi "sedang menonton" di dashboard admin. */
     suspend fun pingWatchSession(channelId: Int)
     /** Hapus dari daftar sedang menonton (background / keluar player). */

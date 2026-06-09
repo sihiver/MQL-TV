@@ -846,8 +846,8 @@ private fun QualityPickerOverlay(
         modifier = Modifier.padding(bottom = 14.dp),
       )
 
-      if (loading) {
-        Text(text = "Memuat dari server…", fontSize = 13.sp, color = TextMuted)
+        if (loading) {
+        Text(text = "Mendeteksi resolusi…", fontSize = 13.sp, color = TextMuted)
       } else if (qualities.isEmpty()) {
         Text(text = "Resolusi tidak tersedia", fontSize = 13.sp, color = TextMuted)
       } else {
