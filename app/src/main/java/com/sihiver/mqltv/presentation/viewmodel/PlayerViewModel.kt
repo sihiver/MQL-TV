@@ -15,9 +15,12 @@ import com.sihiver.mqltv.domain.error.SubscriptionExpiredException
 import com.sihiver.mqltv.domain.usecase.CheckSubscriptionUseCase
 import com.sihiver.mqltv.domain.usecase.GetChannelsUseCase
 import com.sihiver.mqltv.domain.usecase.GetEPGUseCase
+import com.sihiver.mqltv.data.datastore.RecentChannelEntry
+import com.sihiver.mqltv.data.datastore.RecentChannelsPreferences
 import com.sihiver.mqltv.domain.usecase.ManageFavoriteUseCase
 import com.sihiver.mqltv.domain.usecase.PlayStreamUseCase
 import com.sihiver.mqltv.domain.usecase.SyncContentUseCase
+import com.sihiver.mqltv.tv.TvHomeChannelManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -68,6 +71,8 @@ class PlayerViewModel @Inject constructor(
     private val streamRepository: StreamRepository,
     private val manageFavorite: ManageFavoriteUseCase,
     private val checkSubscription: CheckSubscriptionUseCase,
+    private val recentChannelsPreferences: RecentChannelsPreferences,
+    private val tvHomeChannelManager: TvHomeChannelManager,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlayerUiState())
@@ -154,6 +159,7 @@ class PlayerViewModel @Inject constructor(
                         subscriptionExpired = false,
                     )
                 }
+                saveRecentChannel(channel)
                 startWatchPing(channel.id)
             }.onFailure { e ->
                 if (e is SubscriptionExpiredException) {
@@ -216,6 +222,20 @@ class PlayerViewModel @Inject constructor(
         lastChannelSyncMs = now
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { syncContent() }
+        }
+    }
+
+    private fun saveRecentChannel(channel: Channel) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val entry = RecentChannelEntry(
+                id = channel.id,
+                name = channel.name,
+                logo = channel.logo,
+                category = channel.category,
+            )
+            recentChannelsPreferences.addChannel(entry)
+            val updated = recentChannelsPreferences.getOnce()
+            tvHomeChannelManager.updateLauncherChannel(updated)
         }
     }
 

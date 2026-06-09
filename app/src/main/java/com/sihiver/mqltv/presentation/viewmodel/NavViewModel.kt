@@ -46,4 +46,15 @@ class NavViewModel @Inject constructor() : ViewModel() {
     fun dismissToast() {
         _state.update { it.copy(toastMessage = null) }
     }
+
+    /** Deep link dari launcher Android TV — simpan channel ID yang perlu dibuka. */
+    val pendingDeepLinkChannelId = MutableStateFlow<Int?>(null)
+
+    fun setPendingDeepLinkChannelId(channelId: Int) {
+        pendingDeepLinkChannelId.value = channelId
+    }
+
+    fun consumePendingDeepLink() {
+        pendingDeepLinkChannelId.value = null
+    }
 }

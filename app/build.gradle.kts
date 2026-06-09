@@ -78,6 +78,7 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.gson)
     implementation(libs.coil.compose)
+    implementation(libs.tvprovider)
 
     // WorkManager
     implementation(libs.work.runtime)

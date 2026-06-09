@@ -1,8 +1,11 @@
 package com.sihiver.mqltv.presentation.viewmodel
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sihiver.mqltv.data.Channel
+import com.sihiver.mqltv.data.datastore.RecentChannelEntry
+import com.sihiver.mqltv.data.datastore.RecentChannelsPreferences
 import com.sihiver.mqltv.data.mapper.ChannelMapper
 import com.sihiver.mqltv.domain.model.Channel as DomainChannel
 import com.sihiver.mqltv.domain.repository.ChannelRepository
@@ -20,6 +23,7 @@ import javax.inject.Inject
 
 data class HomeUiState(
     val featuredChannels: List<Channel> = emptyList(),
+    val recentChannels: List<Channel> = emptyList(),
     val favoriteChannels: List<Channel> = emptyList(),
     val favorites: List<Int> = emptyList(),
     val restoreFocusChannelId: Int? = null,
@@ -32,6 +36,7 @@ class HomeViewModel @Inject constructor(
     private val channelRepository: ChannelRepository,
     private val favoriteRepository: FavoriteRepository,
     private val manageFavorite: ManageFavoriteUseCase,
+    private val recentChannelsPreferences: RecentChannelsPreferences,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -57,6 +62,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { favoriteRepository.syncFromApi() }
             refreshFavoritesFromLocal()
+        }
+        viewModelScope.launch {
+            recentChannelsPreferences.recentChannels.collect { entries ->
+                _state.update { it.copy(recentChannels = entries.toUiChannels()) }
+            }
         }
     }
 
@@ -144,5 +154,24 @@ class HomeViewModel @Inject constructor(
 
     fun refreshFeatured() {
         loadFeatured()
+    }
+
+    private fun List<RecentChannelEntry>.toUiChannels(): List<Channel> = map { entry ->
+        Channel(
+            id = entry.id,
+            name = entry.name,
+            category = entry.category,
+            logo = entry.logo,
+            color = Color(channelColorHex(entry.name)),
+            live = true,
+            viewers = "",
+            program = "",
+            time = "",
+        )
+    }
+
+    private fun channelColorHex(name: String): Long {
+        val palette = listOf(0xFFFF6B35L, 0xFF63B3EDL, 0xFF68D391L, 0xFFB794F4L, 0xFFF6AD55L)
+        return palette[Math.abs(name.hashCode()) % palette.size]
     }
 }

@@ -34,6 +34,7 @@ import androidx.compose.runtime.withFrameNanos
 @Composable
 fun HomeScreen(
     featuredChannels: List<Channel>,
+    recentChannels: List<Channel>,
     favoriteChannels: List<Channel>,
     favorites: List<Int>,
     restoreFocusChannelId: Int?,
@@ -45,24 +46,27 @@ fun HomeScreen(
 ) {
     val clock = useClock()
     val featuredRowState = rememberLazyListState()
+    val recentRowState = rememberLazyListState()
     val favoritesRowState = rememberLazyListState()
     val focusRequesters = remember { mutableMapOf<Int, FocusRequester>() }
 
-    LaunchedEffect(restoreFocusChannelId, featuredChannels, favoriteChannels) {
+    LaunchedEffect(restoreFocusChannelId, featuredChannels, recentChannels, favoriteChannels) {
         val id = restoreFocusChannelId ?: return@LaunchedEffect
         val featuredIndex = featuredChannels.indexOfFirst { it.id == id }
+        val recentIndex = recentChannels.indexOfFirst { it.id == id }
         val favoritesIndex = favoriteChannels.indexOfFirst { it.id == id }
         val index = when {
             featuredIndex >= 0 -> featuredIndex
+            recentIndex >= 0 -> recentIndex
             favoritesIndex >= 0 -> favoritesIndex
             else -> -1
         }
         if (index < 0) return@LaunchedEffect
         delay(48)
-        if (featuredIndex >= 0) {
-            runCatching { featuredRowState.scrollToItem(featuredIndex) }
-        } else {
-            runCatching { favoritesRowState.scrollToItem(favoritesIndex) }
+        when {
+            featuredIndex >= 0 -> runCatching { featuredRowState.scrollToItem(featuredIndex) }
+            recentIndex >= 0 -> runCatching { recentRowState.scrollToItem(recentIndex) }
+            else -> runCatching { favoritesRowState.scrollToItem(favoritesIndex) }
         }
         withFrameNanos { }
         runCatching { focusRequesters[id]?.requestFocus() }
@@ -107,6 +111,32 @@ fun HomeScreen(
                             onToggleFav = { onToggleFav(channel.id) },
                             modifier = Modifier.focusRequester(focusRequester),
                         )
+                    }
+                }
+
+                if (recentChannels.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    SectionLabel("🕐 Terakhir Ditonton")
+                    LazyRow(
+                        state = recentRowState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        items(recentChannels, key = { "recent_${it.id}" }) { channel ->
+                            val focusRequester = remember(channel.id) {
+                                FocusRequester().also { focusRequesters[channel.id] = it }
+                            }
+                            ChannelCard(
+                                channel = channel,
+                                isFavorite = favorites.contains(channel.id),
+                                onClick = { onOpenPlayer(channel) },
+                                onToggleFav = { onToggleFav(channel.id) },
+                                modifier = Modifier.focusRequester(focusRequester),
+                            )
+                        }
                     }
                 }
 

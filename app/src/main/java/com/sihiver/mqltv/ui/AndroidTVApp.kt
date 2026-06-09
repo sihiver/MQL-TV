@@ -122,6 +122,20 @@ fun AndroidTVApp(
         }
     }
 
+    // Tangani deep link dari saluran launcher Android TV
+    LaunchedEffect(loginState.isLoggedIn, loginState.isCheckingSession) {
+        if (loginState.isCheckingSession || !loginState.isLoggedIn) return@LaunchedEffect
+        navViewModel.pendingDeepLinkChannelId.collect { pendingId ->
+            if (pendingId == null) return@collect
+            val channel = homeState.recentChannels.firstOrNull { it.id == pendingId }
+                ?: homeState.featuredChannels.firstOrNull { it.id == pendingId }
+            if (channel != null) {
+                navViewModel.consumePendingDeepLink()
+                openPlayer(channel)
+            }
+        }
+    }
+
     LaunchedEffect(settingsState.settings.autoplay, playerState.playingChannel?.id) {
         if (playerState.playingChannel != null && !settingsState.settings.autoplay) {
             playerViewModel.setPlaying(false)
@@ -167,6 +181,7 @@ fun AndroidTVApp(
                 }
                 HomeScreen(
                     featuredChannels = homeState.featuredChannels,
+                    recentChannels = homeState.recentChannels,
                     favoriteChannels = homeState.favoriteChannels,
                     favorites = homeState.favorites,
                     restoreFocusChannelId = homeState.restoreFocusChannelId,
