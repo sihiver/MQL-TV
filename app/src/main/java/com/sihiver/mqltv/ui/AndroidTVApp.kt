@@ -10,10 +10,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -77,8 +75,6 @@ fun AndroidTVApp(
     val subscription = settingsState.subscription
     val currentScreenState = rememberUpdatedState(navState.currentScreen)
     val lifecycleOwner = LocalLifecycleOwner.current
-    var homeFeaturedRequested by remember { mutableStateOf(false) }
-    var homeFeaturedTimedOut by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -128,8 +124,6 @@ fun AndroidTVApp(
 
     LaunchedEffect(loginState.isLoggedIn, loginState.isCheckingSession) {
         if (!loginState.isCheckingSession && loginState.isLoggedIn) {
-            homeFeaturedRequested = true
-            homeFeaturedTimedOut = false
             settingsViewModel.refreshSubscription()
             homeViewModel.refreshFeatured()
             homeViewModel.refreshFavorites()
@@ -176,38 +170,11 @@ fun AndroidTVApp(
         if (!loginState.isLoggedIn) return@LaunchedEffect
         when (navState.currentScreen) {
             AppScreen.HOME -> {
-                homeFeaturedRequested = true
-                homeFeaturedTimedOut = false
                 homeViewModel.refreshFeatured()
             }
             AppScreen.SETTINGS -> settingsViewModel.refreshAccountData()
             AppScreen.FAVORITES -> favoritesViewModel.onScreenVisible()
             else -> Unit
-        }
-    }
-
-    LaunchedEffect(navState.currentScreen, homeState.isLoadingFeatured, homeState.featuredChannels.isEmpty()) {
-        if (navState.currentScreen != AppScreen.HOME) {
-            homeFeaturedRequested = false
-            homeFeaturedTimedOut = false
-            return@LaunchedEffect
-        }
-
-        if (homeState.featuredChannels.isNotEmpty()) {
-            homeFeaturedRequested = false
-            homeFeaturedTimedOut = false
-            return@LaunchedEffect
-        }
-
-        if (!homeFeaturedRequested || !homeState.isLoadingFeatured) return@LaunchedEffect
-
-        delay(6000)
-        if (navState.currentScreen == AppScreen.HOME &&
-            homeFeaturedRequested &&
-            homeState.isLoadingFeatured &&
-            homeState.featuredChannels.isEmpty()
-        ) {
-            homeFeaturedTimedOut = true
         }
     }
 
@@ -226,28 +193,6 @@ fun AndroidTVApp(
         AppWrap {
         when (navState.currentScreen) {
             AppScreen.HOME -> {
-                // Jangan tampilkan Home sampai featured channels ter-load.
-                if (homeState.featuredChannels.isEmpty()) {
-                    if (homeFeaturedTimedOut) {
-                        LoadingBox(
-                            message = "Gagal memuat channel unggulan",
-                            subtitle = "Periksa koneksi lalu coba lagi.",
-                            retryLabel = "Coba lagi",
-                            onRetry = {
-                                homeFeaturedTimedOut = false
-                                homeFeaturedRequested = true
-                                homeViewModel.refreshFeatured()
-                            },
-                        )
-                    } else {
-                        LoadingBox(
-                            message = "Memuat channel unggulan…",
-                            subtitle = "Menyiapkan beranda sebelum tampil.",
-                        )
-                    }
-                    return@AppWrap
-                }
-
                 HomeScreen(
                     featuredChannels = homeState.featuredChannels,
                     recentChannels = homeState.recentChannels,
