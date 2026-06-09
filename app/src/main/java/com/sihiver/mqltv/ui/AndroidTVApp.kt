@@ -54,6 +54,7 @@ fun AndroidTVApp(
     favoritesViewModel: FavoritesViewModel = hiltViewModel(),
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     loginViewModel: LoginViewModel = hiltViewModel(),
+    onRequestLauncherSync: () -> Unit = {},
 ) {
     val loginState by loginViewModel.state.collectAsState()
     val navState by navViewModel.state.collectAsState()
@@ -119,6 +120,14 @@ fun AndroidTVApp(
             settingsViewModel.refreshSubscription()
             homeViewModel.refreshFeatured()
             homeViewModel.refreshFavorites()
+            onRequestLauncherSync()
+        }
+    }
+
+    // Perbarui launcher setiap riwayat tontonan berubah
+    LaunchedEffect(homeState.recentChannels) {
+        if (homeState.recentChannels.isNotEmpty()) {
+            onRequestLauncherSync()
         }
     }
 

@@ -37,7 +37,11 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="mqltv" android:host="channel" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="mqltv"
+                    android:host="channel"
+                    android:pathPrefix="/" />
             </intent-filter>
         </activity>
 

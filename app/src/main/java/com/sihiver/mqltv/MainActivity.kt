@@ -8,29 +8,41 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.lifecycle.lifecycleScope
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Surface
+import com.sihiver.mqltv.data.datastore.RecentChannelsPreferences
 import com.sihiver.mqltv.presentation.viewmodel.NavViewModel
+import com.sihiver.mqltv.tv.TvHomeChannelManager
 import com.sihiver.mqltv.ui.AndroidTVApp
 import com.sihiver.mqltv.ui.theme.MQLTVTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val navViewModel: NavViewModel by viewModels()
 
+    @Inject lateinit var tvHomeChannelManager: TvHomeChannelManager
+    @Inject lateinit var recentChannelsPreferences: RecentChannelsPreferences
+
     @OptIn(ExperimentalTvMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleDeepLink(intent)
+        syncLauncherChannel()
         setContent {
             MQLTVTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     shape = RectangleShape,
                 ) {
-                    AndroidTVApp(navViewModel = navViewModel)
+                    AndroidTVApp(
+                        navViewModel = navViewModel,
+                        onRequestLauncherSync = ::syncLauncherChannel,
+                    )
                 }
             }
         }
@@ -38,7 +50,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleDeepLink(intent)
+    }
+
+    private fun syncLauncherChannel() {
+        lifecycleScope.launch {
+            val recent = recentChannelsPreferences.getOnce()
+            tvHomeChannelManager.syncLauncherChannel(recent, activity = this@MainActivity)
+        }
     }
 
     private fun handleDeepLink(intent: Intent?) {
