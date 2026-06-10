@@ -375,10 +375,18 @@ private fun VideoArea(
 
                 when (event.key) {
                     Key.DirectionDown, Key.ChannelUp -> {
+                        if (showOverlay && event.key == Key.DirectionDown) {
+                            bumpOverlayTimer()
+                            return@onPreviewKeyEvent false
+                        }
                         switchToAdjacentChannel(+1)
                         return@onPreviewKeyEvent true
                     }
                     Key.DirectionUp, Key.ChannelDown -> {
+                        if (showOverlay && event.key == Key.DirectionUp) {
+                            bumpOverlayTimer()
+                            return@onPreviewKeyEvent false
+                        }
                         switchToAdjacentChannel(-1)
                         return@onPreviewKeyEvent true
                     }
