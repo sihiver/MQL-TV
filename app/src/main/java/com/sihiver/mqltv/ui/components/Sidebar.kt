@@ -99,7 +99,7 @@ fun Sidebar(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = buildAnnotatedString {
-                    append("VISION")
+                    append("MQLTV")
                     withStyle(SpanStyle(color = AccentOrange)) { append(".") }
                 },
                 fontSize = 26.sp,
