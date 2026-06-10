@@ -626,6 +626,21 @@ private fun VideoArea(
                     },
                     big = true,
                 )
+                val qualityButtonFocus = remember { FocusRequester() }
+                // Flag: picker pernah dibuka — agar tidak mencuri fokus saat komposisi pertama
+                var qualityPickerWasOpen by remember { mutableStateOf(false) }
+
+                // Kembalikan fokus ke tombol resolusi HANYA saat picker ditutup setelah pernah dibuka
+                LaunchedEffect(showQualityPicker) {
+                    if (showQualityPicker) {
+                        qualityPickerWasOpen = true
+                    } else if (qualityPickerWasOpen) {
+                        qualityPickerWasOpen = false
+                        delay(120.milliseconds)
+                        runCatching { qualityButtonFocus.requestFocus() }
+                    }
+                }
+
                 QualityButton(
                     label = qualityButtonLabel(selectedQualityLabel),
                     isHd = selectedQualityLabel.contains("1080", ignoreCase = true) ||
@@ -635,6 +650,7 @@ private fun VideoArea(
                         bumpOverlayTimer()
                         onOpenQualityPicker()
                     },
+                    modifier = Modifier.focusRequester(qualityButtonFocus),
                 )
             }
         }
@@ -815,100 +831,134 @@ private fun QualityPickerOverlay(
     onClose: () -> Unit,
     onSelect: (StreamQualityOption) -> Unit,
 ) {
-  val firstItemFocus = remember { FocusRequester() }
+    val firstItemFocus = remember { FocusRequester() }
+    val closeFocus = remember { FocusRequester() }
 
-  LaunchedEffect(qualities, loading) {
-    if (!loading && qualities.isNotEmpty()) {
-      delay(80.milliseconds)
-      firstItemFocus.requestFocus()
+    // Segera fokus ke "Tutup" agar user tidak pernah kehilangan fokus saat loading
+    LaunchedEffect(Unit) {
+        delay(80.milliseconds)
+        runCatching { closeFocus.requestFocus() }
     }
-  }
 
-  Box(
-    modifier = Modifier
-      .fillMaxSize()
-      .background(Color(0xE6000000)),
-  ) {
-    Column(
-      modifier = Modifier
-        .align(Alignment.Center)
-        .width(320.dp)
-        .clip(RoundedCornerShape(16.dp))
-        .background(Color(0xF2121218))
-        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
-        .padding(20.dp),
-    ) {
-      Text(
-        text = "PILIH RESOLUSI",
-        fontSize = 11.sp,
-        color = AccentOrange,
-        letterSpacing = 2.sp,
-        modifier = Modifier.padding(bottom = 14.dp),
-      )
-
-        if (loading) {
-        Text(text = "Mendeteksi resolusi…", fontSize = 13.sp, color = TextMuted)
-      } else if (qualities.isEmpty()) {
-        Text(text = "Resolusi tidak tersedia", fontSize = 13.sp, color = TextMuted)
-      } else {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          qualities.forEachIndexed { index, option ->
-            val selected = option.label.equals(selectedLabel, ignoreCase = true) ||
-              (option.isAuto && selectedLabel.equals("AUTO", ignoreCase = true))
-            TvFocusableBox(
-              onClick = { onSelect(option) },
-              modifier = Modifier
-                .fillMaxWidth()
-                .then(if (index == 0) Modifier.focusRequester(firstItemFocus) else Modifier),
-              accentColor = AccentOrange,
-              shape = RoundedCornerShape(10.dp),
-              backgroundColor = if (selected) AccentOrange.copy(alpha = 0.35f) else Color(0x14FFFFFF),
-              focusedBackgroundColor = AccentOrange.copy(alpha = 0.5f),
-              unfocusedBorderWidth = if (selected) 0.dp else 1.dp,
-            ) { _ ->
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-              ) {
-                Text(
-                  text = option.label,
-                  fontSize = 14.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = Color.White,
-                )
-                if (selected) {
-                  Text(text = "✓", fontSize = 14.sp, color = AccentOrange)
-                }
-              }
+    // Pindah ke item pertama begitu daftar tersedia; fallback ke "Tutup" jika kosong
+    LaunchedEffect(qualities, loading) {
+        if (!loading) {
+            delay(120.milliseconds)
+            if (qualities.isNotEmpty()) {
+                runCatching { firstItemFocus.requestFocus() }
+            } else {
+                runCatching { closeFocus.requestFocus() }
             }
-          }
         }
-      }
-
-      Spacer(modifier = Modifier.height(14.dp))
-
-      TvFocusableBox(
-        onClick = onClose,
-        modifier = Modifier.fillMaxWidth(),
-        accentColor = AccentOrange,
-        shape = RoundedCornerShape(10.dp),
-        backgroundColor = Color(0x1AFFFFFF),
-        focusedBackgroundColor = AccentOrange.copy(alpha = 0.35f),
-        unfocusedBorderWidth = 0.dp,
-      ) {
-        Text(
-          text = "Tutup",
-          fontSize = 12.sp,
-          color = Color.White,
-          modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        )
-      }
     }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xE6000000))
+            // Jebak semua tombol arah agar fokus tidak kabur keluar overlay
+            .onPreviewKeyEvent { event ->
+                when (event.key) {
+                    Key.DirectionLeft, Key.DirectionRight -> true  // konsumsi, abaikan
+                    else -> false
+                }
+            },
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .width(320.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xF2121218))
+                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+                .padding(20.dp),
+        ) {
+            Text(
+                text = "PILIH RESOLUSI",
+                fontSize = 11.sp,
+                color = AccentOrange,
+                letterSpacing = 2.sp,
+                modifier = Modifier.padding(bottom = 14.dp),
+            )
+
+            if (loading) {
+                Text(text = "Mendeteksi resolusi…", fontSize = 13.sp, color = TextMuted)
+            } else if (qualities.isEmpty()) {
+                Text(text = "Resolusi tidak tersedia", fontSize = 13.sp, color = TextMuted)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    qualities.forEachIndexed { index, option ->
+                        val selected = option.label.equals(selectedLabel, ignoreCase = true) ||
+                            (option.isAuto && selectedLabel.equals("AUTO", ignoreCase = true))
+                        val isFirst = index == 0
+                        val isLast = index == qualities.lastIndex
+                        TvFocusableBox(
+                            onClick = { onSelect(option) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(if (isFirst) Modifier.focusRequester(firstItemFocus) else Modifier)
+                                // Navigasi melingkar: item pertama ← Tutup, item terakhir → Tutup
+                                .focusProperties {
+                                    if (isFirst) up = closeFocus
+                                    if (isLast) down = closeFocus
+                                },
+                            accentColor = AccentOrange,
+                            shape = RoundedCornerShape(10.dp),
+                            backgroundColor = if (selected) AccentOrange.copy(alpha = 0.35f) else Color(0x14FFFFFF),
+                            focusedBackgroundColor = AccentOrange.copy(alpha = 0.5f),
+                            unfocusedBorderWidth = if (selected) 0.dp else 1.dp,
+                        ) { _ ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = option.label,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                )
+                                if (selected) {
+                                    Text(text = "✓", fontSize = 14.sp, color = AccentOrange)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            TvFocusableBox(
+                onClick = onClose,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(closeFocus)
+                    // Navigasi melingkar: Tutup ↑ → item terakhir, Tutup ↓ → item pertama
+                    .focusProperties {
+                        up = if (qualities.isNotEmpty()) FocusRequester.Default else FocusRequester.Default
+                        down = firstItemFocus
+                    },
+                accentColor = AccentOrange,
+                shape = RoundedCornerShape(10.dp),
+                backgroundColor = Color(0x1AFFFFFF),
+                focusedBackgroundColor = AccentOrange.copy(alpha = 0.35f),
+                unfocusedBorderWidth = 0.dp,
+            ) {
+                Text(
+                    text = "Tutup",
+                    fontSize = 12.sp,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+            }
+        }
     }
 }
+
 
 @Composable
 private fun PlayerLiveEpgStrip(
@@ -974,6 +1024,7 @@ private fun QualityButton(
     label: String,
     isHd: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     TvFocusableBox(
         onClick = onClick,
@@ -983,7 +1034,7 @@ private fun QualityButton(
         focusedBackgroundColor = AccentOrange.copy(alpha = 0.55f),
         unfocusedBorderWidth = if (isHd) 0.dp else 1.dp,
         focusedScale = 1.08f,
-        modifier = Modifier
+        modifier = modifier
             .height(40.dp)
             .padding(horizontal = 2.dp),
     ) { _ ->
@@ -1001,6 +1052,7 @@ private fun QualityButton(
         }
     }
 }
+
 
 @Composable
 private fun ColumnScope.EpgPanel(channelName: String, epgData: List<EpgItem>) {
