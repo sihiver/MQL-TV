@@ -831,24 +831,30 @@ private fun QualityPickerOverlay(
     onClose: () -> Unit,
     onSelect: (StreamQualityOption) -> Unit,
 ) {
-    val firstItemFocus = remember { FocusRequester() }
-    val closeFocus = remember { FocusRequester() }
+    // total slot: semua quality + 1 untuk Tutup (index terakhir)
+    val total = qualities.size + 1
+    val closeFocusIndex = qualities.size
+    // FocusRequester per slot, dibuat ulang hanya jika jumlah quality berubah
+    val focusRequesters = remember(qualities.size) { List(total) { FocusRequester() } }
+    var focusedIndex by remember { mutableIntStateOf(closeFocusIndex) }
 
-    // Segera fokus ke "Tutup" agar user tidak pernah kehilangan fokus saat loading
-    LaunchedEffect(Unit) {
-        delay(80.milliseconds)
-        runCatching { closeFocus.requestFocus() }
+    // Fungsi bantu untuk pindah fokus berdasarkan index
+    fun moveFocus(newIndex: Int) {
+        focusedIndex = newIndex
+        runCatching { focusRequesters[newIndex].requestFocus() }
     }
 
-    // Pindah ke item pertama begitu daftar tersedia; fallback ke "Tutup" jika kosong
+    // Fokus ke Tutup saat overlay pertama muncul (loading / kosong)
+    LaunchedEffect(Unit) {
+        delay(80.milliseconds)
+        moveFocus(closeFocusIndex)
+    }
+
+    // Pindah ke item pertama begitu daftar tersedia
     LaunchedEffect(qualities, loading) {
         if (!loading) {
             delay(120.milliseconds)
-            if (qualities.isNotEmpty()) {
-                runCatching { firstItemFocus.requestFocus() }
-            } else {
-                runCatching { closeFocus.requestFocus() }
-            }
+            moveFocus(if (qualities.isNotEmpty()) 0 else closeFocusIndex)
         }
     }
 
@@ -856,10 +862,20 @@ private fun QualityPickerOverlay(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xE6000000))
-            // Jebak semua tombol arah agar fokus tidak kabur keluar overlay
+            // Intercept SEMUA tombol arah di sini — satu titik kontrol, tidak ada celah.
+            // onPreviewKeyEvent diproses sebelum focus traversal sistem berjalan.
             .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key) {
-                    Key.DirectionLeft, Key.DirectionRight -> true  // konsumsi, abaikan
+                    Key.DirectionUp -> {
+                        moveFocus((focusedIndex - 1 + total) % total)
+                        true
+                    }
+                    Key.DirectionDown -> {
+                        moveFocus((focusedIndex + 1) % total)
+                        true
+                    }
+                    Key.DirectionLeft, Key.DirectionRight -> true
                     else -> false
                 }
             },
@@ -890,18 +906,12 @@ private fun QualityPickerOverlay(
                     qualities.forEachIndexed { index, option ->
                         val selected = option.label.equals(selectedLabel, ignoreCase = true) ||
                             (option.isAuto && selectedLabel.equals("AUTO", ignoreCase = true))
-                        val isFirst = index == 0
-                        val isLast = index == qualities.lastIndex
                         TvFocusableBox(
                             onClick = { onSelect(option) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .then(if (isFirst) Modifier.focusRequester(firstItemFocus) else Modifier)
-                                // Navigasi melingkar: item pertama ← Tutup, item terakhir → Tutup
-                                .focusProperties {
-                                    if (isFirst) up = closeFocus
-                                    if (isLast) down = closeFocus
-                                },
+                                .focusRequester(focusRequesters[index]),
+                            onFocused = { focusedIndex = index },
                             accentColor = AccentOrange,
                             shape = RoundedCornerShape(10.dp),
                             backgroundColor = if (selected) AccentOrange.copy(alpha = 0.35f) else Color(0x14FFFFFF),
@@ -936,12 +946,8 @@ private fun QualityPickerOverlay(
                 onClick = onClose,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(closeFocus)
-                    // Navigasi melingkar: Tutup ↑ → item terakhir, Tutup ↓ → item pertama
-                    .focusProperties {
-                        up = if (qualities.isNotEmpty()) FocusRequester.Default else FocusRequester.Default
-                        down = firstItemFocus
-                    },
+                    .focusRequester(focusRequesters[closeFocusIndex]),
+                onFocused = { focusedIndex = closeFocusIndex },
                 accentColor = AccentOrange,
                 shape = RoundedCornerShape(10.dp),
                 backgroundColor = Color(0x1AFFFFFF),
@@ -958,6 +964,7 @@ private fun QualityPickerOverlay(
         }
     }
 }
+
 
 
 @Composable
