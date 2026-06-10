@@ -290,7 +290,12 @@ fun CtrlButton(
                     colorFilter = ColorFilter.tint(Color.White),
                 )
             } else {
-                Text(text = label, fontSize = textSize, color = Color.White)
+                Text(
+                    text = label, 
+                    fontSize = textSize, 
+                    color = Color.White,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
             }
         }
     }
