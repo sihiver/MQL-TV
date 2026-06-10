@@ -315,8 +315,9 @@ private fun VideoArea(
         overlayHideGeneration++
     }
 
-    LaunchedEffect(showOverlay, overlayHideGeneration) {
+    LaunchedEffect(showOverlay, overlayHideGeneration, showQualityPicker) {
         if (!showOverlay) return@LaunchedEffect
+        if (showQualityPicker) return@LaunchedEffect
         delay(FULLSCREEN_OVERLAY_HIDE_MS.milliseconds)
         showOverlay = false
         videoSurfaceFocus.requestFocus()
