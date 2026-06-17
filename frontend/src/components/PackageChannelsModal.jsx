@@ -35,32 +35,39 @@ export default function PackageChannelsModal({ pkg, onClose, onUpdated }) {
   const [filterCat, setFilterCat] = useState("");
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(true);
+  const [availablePage, setAvailablePage] = useState(1);
+  const [availableTotal, setAvailableTotal] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [msg, setMsg] = useState(null);
 
+  const AVAIL_LIMIT = 100;
+
   const loadInPackage = useCallback(async () => {
-    const res = await fetchPackageChannels(pkg.id, { search: searchIn, limit: 100 });
+    const res = await fetchPackageChannels(pkg.id, { search: searchIn, limit: 200 });
     setInPackage(res.data);
     setInTotal(res.total);
   }, [pkg.id, searchIn]);
 
-  const loadAvailable = useCallback(async () => {
+  const loadAvailable = useCallback(async (page = 1, append = false) => {
     if (includesAll) return;
     const res = await fetchPackageChannelsAvailable(pkg.id, {
       search: searchAdd,
       category: filterCat || undefined,
-      limit: 40,
+      page,
+      limit: AVAIL_LIMIT,
     });
-    setAvailable(res.data);
+    setAvailable((prev) => append ? [...prev, ...res.data] : res.data);
+    setAvailableTotal(res.total);
+    setAvailablePage(page);
   }, [pkg.id, searchAdd, filterCat, includesAll]);
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       loadInPackage(),
-      loadAvailable(),
-      fetchChannelCategories().then((r) => setCategories(r.data.map((c) => c.category))),
+      loadAvailable(1),
+      fetchChannelCategories().then((r) => setCategories(r.data.map((c) => c.category ?? c))),
     ])
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -75,7 +82,8 @@ export default function PackageChannelsModal({ pkg, onClose, onUpdated }) {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      loadAvailable().catch(() => {});
+      setAvailablePage(1);
+      loadAvailable(1).catch(() => {});
     }, 300);
     return () => clearTimeout(t);
   }, [loadAvailable]);
@@ -104,7 +112,7 @@ export default function PackageChannelsModal({ pkg, onClose, onUpdated }) {
       setMsg(`${r.added} channel ditambahkan`);
       setSelected(new Set());
       await loadInPackage();
-      await loadAvailable();
+      await loadAvailable(1);
       onUpdated?.();
     } catch (e) {
       setError(e.message);
@@ -121,7 +129,7 @@ export default function PackageChannelsModal({ pkg, onClose, onUpdated }) {
       const r = await addPackageChannelsByCategory(pkg.id, [filterCat]);
       setMsg(`${r.added} channel dari kategori "${filterCat}" ditambahkan`);
       await loadInPackage();
-      await loadAvailable();
+      await loadAvailable(1);
       onUpdated?.();
     } catch (e) {
       setError(e.message);
@@ -151,7 +159,7 @@ export default function PackageChannelsModal({ pkg, onClose, onUpdated }) {
       const r = await clearPackageChannels(pkg.id);
       setMsg(`${r.removed} channel dihapus dari paket`);
       await loadInPackage();
-      await loadAvailable();
+      await loadAvailable(1);
       onUpdated?.();
     } catch (e) {
       setError(e.message);
@@ -367,6 +375,23 @@ export default function PackageChannelsModal({ pkg, onClose, onUpdated }) {
               ))}
               {!available.length && (
                 <div style={{ padding: 12, color: "#666", fontSize: 12 }}>Tidak ada channel tersedia</div>
+              )}
+              {available.length > 0 && available.length < availableTotal && (
+                <button
+                  type="button"
+                  onClick={() => loadAvailable(availablePage + 1, true)}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.05)",
+                    border: "none",
+                    color: "#aaa",
+                    padding: "10px",
+                    fontSize: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  Muat lebih… ({available.length}/{availableTotal})
+                </button>
               )}
             </div>
           </div>

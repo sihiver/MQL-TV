@@ -274,6 +274,44 @@ router.get("/:id/play-info", async (req, res, next) => {
   }
 });
 
+// GET /api/admin/channels/:id/qualities
+router.get("/:id/qualities", async (req, res, next) => {
+  try {
+    const channel = await db.query(
+      `SELECT id, stream_url as "streamUrl", user_agent as "userAgent", referer
+       FROM channels WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!channel.rows.length) {
+      return res.status(404).json({ error: "Channel tidak ditemukan" });
+    }
+    const ch = channel.rows[0];
+
+    // Dynamic import to avoid missing dependencies if they aren't available yet
+    const { fetchStreamQualities } = await import("../../services/streamQualities.js");
+    const { resolveStreamHeaders } = await import("../../utils/iptvStreamUrl.js");
+
+    const headers = resolveStreamHeaders(ch.streamUrl, ch.userAgent, ch.referer);
+    // Use req.user.id for token if applicable, or fallback to 0
+    const userId = req.user ? req.user.id : 0;
+    
+    const result = await fetchStreamQualities(
+      ch.streamUrl,
+      headers.userAgent,
+      headers.referer,
+      userId
+    );
+
+    res.json({
+      data: result.data,
+      masterUrl: result.masterUrl,
+      total: result.data.length,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/admin/channels/batch
 router.post("/batch", async (req, res, next) => {
   try {

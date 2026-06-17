@@ -5,7 +5,10 @@ import { apiFetch } from "../api/http";
 export default function PlayerModal({ channel, onClose }) {
   const videoRef = useRef(null);
   const playerRef = useRef(null);
+  const tracksRef = useRef([]);
   const [error, setError] = useState(null);
+  const [tracks, setTracks] = useState([]);
+  const [selectedTrackId, setSelectedTrackId] = useState("auto");
 
   useEffect(() => {
     shaka.polyfill.installAll();
@@ -17,7 +20,8 @@ export default function PlayerModal({ channel, onClose }) {
     const initPlayer = async () => {
       let playInfo = channel;
       try {
-        playInfo = await apiFetch(`/api/admin/channels/${channel.id}/play-info`);
+        const info = await apiFetch(`/api/admin/channels/${channel.id}/play-info`);
+        if (info) playInfo = info;
       } catch (err) {
         console.error("Gagal mengambil detail channel", err);
       }
@@ -31,6 +35,15 @@ export default function PlayerModal({ channel, onClose }) {
           setError(`Player error (${e.detail.code})`);
         }
       });
+
+      const updateTracks = () => {
+        const variantTracks = player.getVariantTracks().filter((t) => t.type === "variant");
+        variantTracks.sort((a, b) => (b.height || 0) - (a.height || 0));
+        tracksRef.current = variantTracks; // always fresh reference
+        setTracks([...variantTracks]);     // trigger re-render for dropdown
+      };
+
+      player.addEventListener("trackschanged", updateTracks);
 
       // Configure DRM
       const drmConfig = {};
@@ -69,6 +82,7 @@ export default function PlayerModal({ channel, onClose }) {
       try {
         await player.load(playInfo.streamUrl);
         console.log("The video has now been loaded!");
+        updateTracks(); // Ensure we get tracks immediately after load
       } catch (e) {
         console.error("Error loading video", e);
         setError(`Gagal memuat video (${e.code || "Network Error"})`);
@@ -148,20 +162,65 @@ export default function PlayerModal({ channel, onClose }) {
               </div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#aaa",
-              fontSize: 20,
-              cursor: "pointer",
-              lineHeight: 1,
-            }}
-          >
-            ×
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {tracks.length > 1 && (
+              <select
+                value={selectedTrackId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedTrackId(val);
+                  const p = playerRef.current;
+                  if (!p) return;
+
+                  if (val === "auto") {
+                    p.configure({ abr: { enabled: true } });
+                  } else {
+                    // Read fresh tracks directly from player — avoid stale state
+                    const liveTracks = p.getVariantTracks().filter((t) => t.type === "variant");
+                    const track = liveTracks.find((t) => String(t.id) === val);
+                    if (track) {
+                      p.configure({ abr: { enabled: false } });
+                      p.selectVariantTrack(track, /* clearBuffer= */ true, /* safeMargin= */ 0);
+                      console.log("Switched to track:", track.height, "p", track.bandwidth, "bps");
+                    } else {
+                      console.warn("Track not found for id:", val, "available:", p.getVariantTracks().map(t => t.id));
+                    }
+                  }
+                }}
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  color: "#fff",
+                  borderRadius: 6,
+                  padding: "4px 8px",
+                  fontSize: 12,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="auto" style={{ color: "#000" }}>Auto</option>
+                {tracks.map((t) => (
+                  <option key={t.id} value={String(t.id)} style={{ color: "#000" }}>
+                    {t.height ? `${t.height}p` : "Unknown"} {t.bandwidth ? `(${Math.round(t.bandwidth / 1000)} kbps)` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#aaa",
+                fontSize: 20,
+                cursor: "pointer",
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {error && (
