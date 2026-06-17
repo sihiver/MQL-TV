@@ -10,11 +10,23 @@ import PackagesPage from "./pages/PackagesPage";
 import SubscriptionsPage from "./pages/SubscriptionsPage";
 import UsersPage from "./pages/UsersPage";
 
+const VALID_PAGES = new Set(Object.values(PAGES));
+
+function getInitialPage() {
+  const saved = localStorage.getItem("admin_page");
+  return saved && VALID_PAGES.has(saved) ? saved : PAGES.DASHBOARD;
+}
+
 export default function AdminApp() {
   const { user, logout } = useAuth();
-  const [page, setPage] = useState(PAGES.DASHBOARD);
+  const [page, setPage] = useState(getInitialPage);
   const [notifications, setNotif] = useState(3);
   const apiOnline = useApiHealth();
+
+  const navigate = (id) => {
+    localStorage.setItem("admin_page", id);
+    setPage(id);
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -36,7 +48,7 @@ export default function AdminApp() {
               <button
                 key={n.id}
                 type="button"
-                onClick={() => setPage(n.id)}
+                onClick={() => navigate(n.id)}
                 className={`nav-tab ${page === n.id ? "nav-tab--active" : ""}`}
               >
                 <span>{n.icon}</span>
