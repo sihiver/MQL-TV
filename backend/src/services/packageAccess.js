@@ -10,7 +10,7 @@ export async function getUserPlanSlug(userId) {
      LIMIT 1`,
     [userId],
   );
-  return result.rows[0]?.slug || "free";
+  return result.rows[0]?.slug || "basic";
 }
 
 export async function getPackageBySlug(slug) {

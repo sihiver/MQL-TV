@@ -90,6 +90,12 @@ router.post("/login", async (req, res, next) => {
 
     const expiresSec = parseDurationToSeconds(expiresIn) || 86400;
 
+    const subResult = await db.query(
+      `SELECT expires_at FROM subscriptions WHERE user_id = $1 ORDER BY expires_at DESC LIMIT 1`,
+      [user.id]
+    );
+    const expiresAt = subResult.rows[0]?.expires_at;
+
     res.json({
       token,
       refreshToken,
@@ -100,6 +106,7 @@ router.post("/login", async (req, res, next) => {
         email: user.email,
         plan: user.plan,
         role: user.role,
+        expiresAt: expiresAt,
       },
     });
   } catch (err) { next(err); }
@@ -209,7 +216,8 @@ router.get("/me", authenticate, async (req, res, next) => {
   try {
     const result = await db.query(
       `SELECT u.id, u.name, u.email, u.plan, u.role,
-              COUNT(d.id) as devices
+              COUNT(d.id) as devices,
+              (SELECT expires_at FROM subscriptions s WHERE s.user_id = u.id ORDER BY expires_at DESC LIMIT 1) as "expiresAt"
        FROM users u
        LEFT JOIN devices d ON d.user_id = u.id
        WHERE u.id = $1

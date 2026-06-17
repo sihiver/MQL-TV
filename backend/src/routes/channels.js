@@ -182,19 +182,7 @@ router.get("/trending", async (req, res, next) => {
 });
 
 async function loadChannelForStream(req, res, next) {
-  const sub = await db.query(
-    `SELECT s.plan, s.expires_at FROM subscriptions s
-     WHERE s.user_id = $1 AND s.status = 'active'
-     AND s.expires_at > NOW()`,
-    [req.user.id],
-  );
-  if (!sub.rows.length) {
-    res.status(403).json({ error: "Subscription tidak aktif" });
-    return null;
-  }
-
-  const planSlug = sub.rows[0].plan?.toLowerCase();
-  const pkg = await getPackageBySlug(planSlug);
+  const access = await resolvePackageAccess(req.user.id);
 
   const channel = await db.query(
     `SELECT id, stream_url, drm_type, drm_key, user_agent, referer
@@ -206,16 +194,31 @@ async function loadChannelForStream(req, res, next) {
     return null;
   }
 
-  if (pkg) {
+  // Check if the user's ACTUAL subscription is active
+  const sub = await db.query(
+    `SELECT 1 FROM subscriptions WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()`,
+    [req.user.id],
+  );
+  const isActuallyActive = sub.rows.length > 0;
+
+  if (!isActuallyActive) {
+    res.status(403).json({ error: "Subscription tidak aktif" });
+    return null;
+  }
+
+  if (access.hasPackage) {
     const allowed = await channelAllowedForPackage(
-      pkg.id,
+      access.packageId,
       channel.rows[0].id,
-      pkg.includes_all_channels,
+      access.includesAll,
     );
     if (!allowed) {
       res.status(403).json({ error: "Channel tidak termasuk paket langganan Anda" });
       return null;
     }
+  } else {
+    res.status(403).json({ error: "Subscription tidak aktif" });
+    return null;
   }
 
   return channel.rows[0];
