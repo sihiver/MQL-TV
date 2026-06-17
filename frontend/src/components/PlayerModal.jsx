@@ -27,7 +27,9 @@ export default function PlayerModal({ channel, onClose }) {
 
       player.addEventListener("error", (e) => {
         console.error("Error code", e.detail.code, "object", e.detail);
-        setError(`Player error (${e.detail.code})`);
+        if (e.detail.severity === 2 /* CRITICAL */) {
+          setError(`Player error (${e.detail.code})`);
+        }
       });
 
       // Configure DRM
@@ -166,19 +168,38 @@ export default function PlayerModal({ channel, onClose }) {
           <div
             style={{
               position: "absolute",
-              top: "50%",
+              top: 20,
               left: "50%",
-              transform: "translate(-50%, -50%)",
-              background: "rgba(0,0,0,0.8)",
+              transform: "translateX(-50%)",
+              background: "rgba(0,0,0,0.85)",
               color: "#ff6b6b",
-              padding: "16px 24px",
+              padding: "12px 20px",
               borderRadius: 8,
               zIndex: 10,
               textAlign: "center",
               fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
             }}
           >
-            {error}
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              style={{
+                background: "rgba(255,255,255,0.1)",
+                border: "none",
+                color: "#fff",
+                cursor: "pointer",
+                fontSize: 16,
+                padding: "4px 8px",
+                borderRadius: 4,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
           </div>
         )}
 
