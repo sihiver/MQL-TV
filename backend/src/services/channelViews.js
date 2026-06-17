@@ -62,10 +62,19 @@ export async function touchChannelView(db, userId, channelId) {
 /**
  * User keluar player / app ke background.
  * Jangan hapus riwayat channel_views — dipakai untuk unggulan/trending.
- * Dashboard "sedang menonton" otomatis hilang setelah WATCH_ACTIVE_MINUTES tanpa ping.
+ * Sesi tontonan aktif digeser ke masa lalu agar langsung hilang dari "sedang menonton" di dashboard.
  */
-export async function clearChannelView(_db, _userId) {
-  // no-op: riwayat tontonan tetap disimpan untuk perhitungan unggulan
+export async function clearChannelView(db, userId) {
+  await db.query(
+    `UPDATE channel_views 
+     SET viewed_at = NOW() - make_interval(mins => $1::int) - INTERVAL '1 second'
+     WHERE id = (
+       SELECT id FROM channel_views 
+       WHERE user_id = $2 
+       ORDER BY viewed_at DESC LIMIT 1
+     )`,
+    [WATCH_ACTIVE_MINUTES, userId]
+  );
 }
 
 /**
