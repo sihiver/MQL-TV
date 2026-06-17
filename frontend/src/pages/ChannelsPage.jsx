@@ -172,11 +172,7 @@ export default function ChannelsPage() {
 
     try {
       const text = await file.text();
-      const isM3u =
-        importFormat === "m3u" ||
-        /\.m3u8?$/i.test(file.name) ||
-        text.includes("#EXTM3U") ||
-        text.includes("#EXTINF");
+      const isM3u = importFormat === "m3u";
 
       const result = isM3u
         ? await importChannelsFromM3u({ content: text, mode: importMode })
