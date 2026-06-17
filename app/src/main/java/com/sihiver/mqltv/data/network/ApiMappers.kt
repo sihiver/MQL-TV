@@ -83,7 +83,7 @@ fun SubscriptionResponse.toStatus(): SubscriptionStatus {
         if (exp.isBefore(now)) 0
         else ((exp.epochSecond - now.epochSecond) / 86400).toInt()
     } ?: 0
-    val label = expires?.atZone(ZoneId.systemDefault())?.format(
+    val label = expires?.atZone(ZoneId.of("UTC"))?.format(
         DateTimeFormatter.ofPattern("d MMM yyyy"),
     ) ?: "—"
     return SubscriptionStatus(
