@@ -257,6 +257,23 @@ router.put("/:id", async (req, res, next) => {
   }
 });
 
+// GET /api/admin/channels/:id/play-info
+router.get("/:id/play-info", async (req, res, next) => {
+  try {
+    const result = await db.query(
+      `SELECT stream_url as "streamUrl", drm_type as "drmType", drm_key as "drmKey", user_agent as "userAgent", referer
+       FROM channels WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Channel tidak ditemukan" });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/admin/channels/batch
 router.post("/batch", async (req, res, next) => {
   try {

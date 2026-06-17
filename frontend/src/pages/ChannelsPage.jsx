@@ -14,6 +14,7 @@ import { fmt } from "../utils/format";
 import ActionBtn from "../components/ActionBtn";
 import Badge from "../components/Badge";
 import Modal from "../components/Modal";
+import PlayerModal from "../components/PlayerModal";
 
 const EMPTY_FORM = {
   name: "",
@@ -56,6 +57,7 @@ export default function ChannelsPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [playingChannel, setPlayingChannel] = useState(null);
   const fileRef = useRef(null);
 
   const loadCategories = useCallback(async () => {
@@ -500,6 +502,7 @@ export default function ChannelsPage() {
                 </td>
                 <td style={{ padding: "13px 16px" }}>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <ActionBtn onClick={() => setPlayingChannel(ch)} label="📺" color="#48BB78" />
                     <ActionBtn onClick={() => openEdit(ch)} label="✏" color="#63B3ED" />
                     <ActionBtn
                       onClick={() => handleToggle(ch, "live")}
@@ -749,6 +752,10 @@ export default function ChannelsPage() {
             </div>
           )}
         </Modal>
+      )}
+
+      {playingChannel && (
+        <PlayerModal channel={playingChannel} onClose={() => setPlayingChannel(null)} />
       )}
     </div>
   );
