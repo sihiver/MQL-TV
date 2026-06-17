@@ -257,6 +257,34 @@ router.put("/:id", async (req, res, next) => {
   }
 });
 
+// POST /api/admin/channels/batch
+router.post("/batch", async (req, res, next) => {
+  try {
+    const { ids, action, payload } = req.body;
+    if (!Array.isArray(ids) || !ids.length) {
+      return res.status(400).json({ error: "IDs tidak boleh kosong" });
+    }
+
+    if (action === "delete") {
+      await db.query("DELETE FROM channels WHERE id = ANY($1)", [ids]);
+    } else if (action === "activate") {
+      await db.query("UPDATE channels SET active = true WHERE id = ANY($1)", [ids]);
+    } else if (action === "deactivate") {
+      await db.query("UPDATE channels SET active = false WHERE id = ANY($1)", [ids]);
+    } else if (action === "set_category") {
+      if (!payload?.category) return res.status(400).json({ error: "Kategori wajib diisi" });
+      await db.query("UPDATE channels SET category = $2 WHERE id = ANY($1)", [ids, payload.category]);
+    } else {
+      return res.status(400).json({ error: "Aksi tidak valid" });
+    }
+
+    await clearChannelCache();
+    res.json({ success: true, count: ids.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PATCH /api/admin/channels/:id/toggle
 router.patch("/:id/toggle", async (req, res, next) => {
   try {

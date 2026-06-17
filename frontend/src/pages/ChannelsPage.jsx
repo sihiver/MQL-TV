@@ -8,6 +8,7 @@ import {
   importChannelsFromM3u,
   toggleChannel,
   updateChannel,
+  batchActionChannels,
 } from "../api/channels";
 import { fmt } from "../utils/format";
 import ActionBtn from "../components/ActionBtn";
@@ -54,6 +55,7 @@ export default function ChannelsPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
   const fileRef = useRef(null);
 
   const loadCategories = useCallback(async () => {
@@ -77,6 +79,7 @@ export default function ChannelsPage() {
       });
       setChannels(res.data);
       setTotal(res.total);
+      setSelectedIds([]);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -159,6 +162,37 @@ export default function ChannelsPage() {
       loadCategories();
     } catch (e) {
       setError(e.message);
+    }
+  };
+
+  const handleBatchAction = async (action, payload = null) => {
+    if (!selectedIds.length) return;
+    if (action === "delete" && !window.confirm(`Hapus ${selectedIds.length} channel terpilih?`)) return;
+    try {
+      await batchActionChannels({ ids: selectedIds, action, payload });
+      load();
+      loadCategories();
+      if (action === "delete" || action === "set_category") {
+        setSelectedIds([]);
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(channels.map((c) => c.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (e, id) => {
+    if (e.target.checked) {
+      setSelectedIds((prev) => [...prev, id]);
+    } else {
+      setSelectedIds((prev) => prev.filter((pid) => pid !== id));
     }
   };
 
@@ -347,6 +381,25 @@ export default function ChannelsPage() {
         )}
       </div>
 
+      {selectedIds.length > 0 && (
+        <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "10px 14px", borderRadius: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginRight: 8 }}>{selectedIds.length} terpilih</span>
+          <button type="button" onClick={() => handleBatchAction("activate")} style={{ background: "#48BB78", border: "none", color: "#fff", borderRadius: 6, padding: "6px 12px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>Aktifkan</button>
+          <button type="button" onClick={() => handleBatchAction("deactivate")} style={{ background: "#A0AEC0", border: "none", color: "#fff", borderRadius: 6, padding: "6px 12px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>Nonaktifkan</button>
+          <button 
+            type="button" 
+            onClick={() => {
+              const cat = window.prompt("Masukkan nama kategori baru untuk channel yang dipilih:");
+              if (cat && cat.trim()) handleBatchAction("set_category", { category: cat.trim() });
+            }} 
+            style={{ background: "#ED8936", border: "none", color: "#fff", borderRadius: 6, padding: "6px 12px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}
+          >
+            Pindah Kategori
+          </button>
+          <button type="button" onClick={() => handleBatchAction("delete")} style={{ background: "#FC8181", border: "none", color: "#fff", borderRadius: 6, padding: "6px 12px", fontSize: 11, cursor: "pointer", fontWeight: 600 }}>Hapus</button>
+        </div>
+      )}
+
       <div
         style={{
           background: "rgba(255,255,255,0.02)",
@@ -358,6 +411,13 @@ export default function ChannelsPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <th style={{ padding: "12px 16px", width: 40 }}>
+                <input
+                  type="checkbox"
+                  checked={channels.length > 0 && selectedIds.length === channels.length}
+                  onChange={handleSelectAll}
+                />
+              </th>
               {["Channel", "Kategori", "Status", "DRM", "Sumber", "Aksi"].map((h) => (
                 <th
                   key={h}
@@ -381,10 +441,17 @@ export default function ChannelsPage() {
                 key={ch.id}
                 style={{
                   borderBottom: "1px solid rgba(255,255,255,0.04)",
-                  background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
+                  background: selectedIds.includes(ch.id) ? "rgba(99,179,237,0.15)" : (i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)"),
                   opacity: ch.active ? 1 : 0.5,
                 }}
               >
+                <td style={{ padding: "13px 16px" }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(ch.id)}
+                    onChange={(e) => handleSelectOne(e, ch.id)}
+                  />
+                </td>
                 <td style={{ padding: "13px 16px", maxWidth: 280 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     {ch.logoUrl ? (

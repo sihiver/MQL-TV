@@ -51,3 +51,10 @@ export function toggleChannel(id, field = "active") {
 export function deleteChannel(id) {
   return apiFetch(`/api/admin/channels/${id}`, { method: "DELETE" });
 }
+
+export function batchActionChannels({ ids, action, payload }) {
+  return apiFetch("/api/admin/channels/batch", {
+    method: "POST",
+    body: JSON.stringify({ ids, action, payload }),
+  });
+}
