@@ -13,6 +13,7 @@ import favoriteRoutes from "./routes/favorites.js";
 import subscriptionRoutes from "./routes/subscription.js";
 import deviceRoutes from "./routes/devices.js";
 import adminRoutes from "./routes/admin.js";
+import presenceRoutes from "./routes/presence.js";
 import { initServerSettings } from "./services/serverSettings.js";
 import { maintenanceMiddleware } from "./middleware/maintenance.js";
 import { rateLimitMiddleware } from "./middleware/rateLimit.js";
@@ -70,6 +71,8 @@ app.use("/api/favorites", favoriteRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/devices", deviceRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/public/presence", presenceRoutes);
+app.use("/public/presence", presenceRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err.stack);
