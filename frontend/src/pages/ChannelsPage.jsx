@@ -102,7 +102,7 @@ export default function ChannelsPage() {
     setPage(1);
   }, [search, filterCat]);
 
-  const catFilters = ["Semua", ...new Set([...categories, ...channels.map((c) => c.category)])];
+  const catFilters = ["Semua", ...categories.filter(Boolean)];
 
   const openCreate = () => {
     setEditing(null);
@@ -356,8 +356,8 @@ export default function ChannelsPage() {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap", maxHeight: 120, overflowY: "auto" }}>
-        {catFilters.slice(0, 24).map((cat) => (
+      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
+        {catFilters.slice(0, 20).map((cat) => (
           <button
             key={cat}
             type="button"
@@ -371,15 +371,37 @@ export default function ChannelsPage() {
               fontSize: 11,
               fontWeight: 600,
               cursor: "pointer",
+              flexShrink: 0,
             }}
           >
             {cat}
           </button>
         ))}
-        {catFilters.length > 24 && (
-          <span style={{ fontSize: 11, color: "#666", alignSelf: "center" }}>
-            +{catFilters.length - 24} kategori
-          </span>
+        {catFilters.length > 20 && (
+          <select
+            value={catFilters.slice(20).includes(filterCat) ? filterCat : ""}
+            onChange={(e) => e.target.value && setFilterCat(e.target.value)}
+            style={{
+              background: catFilters.slice(20).includes(filterCat) ? "#FF6B35" : "rgba(255,255,255,0.07)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 20,
+              padding: "7px 16px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              outline: "none",
+            }}
+          >
+            <option value="" style={{ color: "#000", background: "#1a1a1a" }}>
+              +{catFilters.length - 20} kategori lainnya…
+            </option>
+            {catFilters.slice(20).map((cat) => (
+              <option key={cat} value={cat} style={{ color: "#fff", background: "#1a1a1a" }}>
+                {cat}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 

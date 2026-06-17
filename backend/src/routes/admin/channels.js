@@ -43,7 +43,7 @@ router.get("/categories/list", async (_req, res, next) => {
     const result = await db.query(
       `SELECT category, COUNT(*)::int AS count
        FROM channels
-       WHERE active = true
+       WHERE category IS NOT NULL AND TRIM(category) <> ''
        GROUP BY category
        ORDER BY count DESC, category ASC`,
     );
