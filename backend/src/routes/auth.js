@@ -91,10 +91,27 @@ router.post("/login", async (req, res, next) => {
     const expiresSec = parseDurationToSeconds(expiresIn) || 86400;
 
     const subResult = await db.query(
-      `SELECT expires_at FROM subscriptions WHERE user_id = $1 ORDER BY expires_at DESC LIMIT 1`,
+      `SELECT expires_at, status FROM subscriptions WHERE user_id = $1 ORDER BY expires_at DESC LIMIT 1`,
       [user.id]
     );
-    const expiresAt = subResult.rows[0]?.expires_at;
+    let expiresAt = "2000-01-01T00:00:00.000Z";
+    if (subResult.rows.length > 0) {
+      const sub = subResult.rows[0];
+      if (sub.status === 'active') {
+        expiresAt = sub.expires_at ? new Date(sub.expires_at).toISOString() : "2000-01-01T00:00:00.000Z";
+      } else {
+        if (sub.expires_at) {
+          const d = new Date(sub.expires_at);
+          if (d <= new Date()) {
+            expiresAt = d.toISOString();
+          } else {
+            expiresAt = new Date(Date.now() - 86400000).toISOString(); // yesterday
+          }
+        } else {
+          expiresAt = "2000-01-01T00:00:00.000Z";
+        }
+      }
+    }
 
     res.json({
       token,
@@ -217,14 +234,34 @@ router.get("/me", authenticate, async (req, res, next) => {
     const result = await db.query(
       `SELECT u.id, u.name, u.email, u.plan, u.role,
               COUNT(d.id) as devices,
-              (SELECT expires_at FROM subscriptions s WHERE s.user_id = u.id ORDER BY expires_at DESC LIMIT 1) as "expiresAt"
+              (SELECT expires_at FROM subscriptions s WHERE s.user_id = u.id ORDER BY expires_at DESC LIMIT 1) as "rawExpiresAt",
+              (SELECT status FROM subscriptions s WHERE s.user_id = u.id ORDER BY expires_at DESC LIMIT 1) as "subStatus"
        FROM users u
        LEFT JOIN devices d ON d.user_id = u.id
        WHERE u.id = $1
        GROUP BY u.id`,
       [req.user.id]
     );
-    res.json(result.rows[0]);
+    const user = result.rows[0];
+    if (user) {
+      let expiresAt = "2000-01-01T00:00:00.000Z";
+      if (user.rawExpiresAt) {
+        if (user.subStatus === 'active') {
+          expiresAt = new Date(user.rawExpiresAt).toISOString();
+        } else {
+          const d = new Date(user.rawExpiresAt);
+          if (d <= new Date()) {
+            expiresAt = d.toISOString();
+          } else {
+            expiresAt = new Date(Date.now() - 86400000).toISOString(); // yesterday
+          }
+        }
+      }
+      user.expiresAt = expiresAt;
+      delete user.rawExpiresAt;
+      delete user.subStatus;
+    }
+    res.json(user);
   } catch (err) { next(err); }
 });
 
