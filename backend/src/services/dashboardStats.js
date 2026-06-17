@@ -63,10 +63,11 @@ export async function getDashboardStats() {
       SELECT COUNT(*)::int AS c FROM users
       WHERE role != 'admin' AND created_at >= CURRENT_DATE
     `),
-    db.query(`
-      SELECT COUNT(DISTINCT user_id)::int AS c FROM channel_views
-      WHERE viewed_at > NOW() - INTERVAL '30 minutes'
-    `),
+    db.query(
+      `SELECT COUNT(DISTINCT user_id)::int AS c FROM channel_views
+       WHERE viewed_at > NOW() - make_interval(mins => $1::int)`,
+      [WATCH_ACTIVE_MINUTES],
+    ),
     db.query(`
       SELECT COALESCE(SUM(p.price), 0)::bigint AS total
       FROM subscriptions s
