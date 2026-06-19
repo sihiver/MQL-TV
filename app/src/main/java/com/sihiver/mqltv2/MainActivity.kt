@@ -31,6 +31,10 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalTvMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Cek pembaruan OTA saat aplikasi diluncurkan
+        AppUpdater.checkForUpdates(this)
+        
         handleDeepLink(intent)
         syncLauncherChannel()
         setContent {
