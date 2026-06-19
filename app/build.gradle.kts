@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.sihiver.mqltv"
+    namespace = "com.sihiver.mqltv2"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.sihiver.mqltv"
+        applicationId = "com.sihiver.mqltv2"
         minSdk = 23
         targetSdk = 35
         versionCode = 1

@@ -9,6 +9,7 @@ import EpgMappingPage from "./pages/EpgMappingPage";
 import PackagesPage from "./pages/PackagesPage";
 import SubscriptionsPage from "./pages/SubscriptionsPage";
 import UsersPage from "./pages/UsersPage";
+import AppUpdatesPage from "./pages/AppUpdatesPage";
 
 const VALID_PAGES = new Set(Object.values(PAGES));
 
@@ -120,6 +121,7 @@ export default function AdminApp() {
         {page === PAGES.USERS && <UsersPage />}
         {page === PAGES.PACKAGES && <PackagesPage />}
         {page === PAGES.SUBSCRIPTIONS && <SubscriptionsPage />}
+        {page === PAGES.APP_UPDATES && <AppUpdatesPage />}
         {page === PAGES.SETTINGS && <BackendSettingsPage />}
       </main>
     </div>

@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS app_updates (
+    id SERIAL PRIMARY KEY,
+    version_code INTEGER NOT NULL,
+    version_name VARCHAR(50) NOT NULL,
+    apk_url VARCHAR(255) NOT NULL,
+    release_notes TEXT,
+    is_force_update BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

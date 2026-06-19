@@ -22,6 +22,8 @@ router.get("/stats", async (_req, res, next) => {
   }
 });
 
+import appUpdatesAdminRouter from "./admin/app-updates.js";
+
 router.use("/users", usersRouter);
 router.use("/subscriptions", subscriptionsRouter);
 router.use("/packages", packagesRouter);
@@ -29,5 +31,6 @@ router.use("/packages/:packageId/channels", packageChannelsRouter);
 router.use("/epg", epgAdminRouter);
 router.use("/settings", settingsRouter);
 router.use("/channels", channelsRouter);
+router.use("/app-updates", appUpdatesAdminRouter);
 
 export default router;

@@ -1,40 +1,41 @@
 {
     "type": "module",
     "scripts": {
-      "dev":      "nodemon src/app.js",
-      "start":    "node src/app.js",
-      "db:create": "node scripts/create-db.js",
-      "db:migrate": "node scripts/migrate.js",
-      "db:setup":  "npm run db:create && npm run db:migrate",
-      "db:setup-all": "bash scripts/setup-all-migrations.sh",
-      "db:seed-users": "node scripts/seed-users.js",
-      "db:seed-subscriptions": "node scripts/seed-subscriptions.js",
-      "db:migrate-packages": "node scripts/migrate-002-packages.js",
-      "db:seed-packages": "node scripts/seed-packages.js",
-      "db:migrate-channels": "node scripts/migrate-003-channels.js",
-      "db:import-gvision": "node scripts/import-gvision-json.js",
-      "db:migrate-package-channels": "node scripts/migrate-004-package-channels.js",
-      "db:migrate-epg": "node scripts/migrate-005-epg.js",
-      "db:migrate-channel-views": "node scripts/migrate-006-channel-views.js",
-      "db:migrate-payments": "node scripts/migrate-007-payments.js",
-      "db:migrate-settings": "node scripts/migrate-008-server-settings.js",
-      "epg:sync": "node scripts/sync-epg.js",
-      "db:fix-stream-urls": "node scripts/fix-stream-urls.js"
+        "dev": "nodemon src/app.js",
+        "start": "node src/app.js",
+        "db:create": "node scripts/create-db.js",
+        "db:migrate": "node scripts/migrate.js",
+        "db:setup": "npm run db:create && npm run db:migrate",
+        "db:setup-all": "bash scripts/setup-all-migrations.sh",
+        "db:seed-users": "node scripts/seed-users.js",
+        "db:seed-subscriptions": "node scripts/seed-subscriptions.js",
+        "db:migrate-packages": "node scripts/migrate-002-packages.js",
+        "db:seed-packages": "node scripts/seed-packages.js",
+        "db:migrate-channels": "node scripts/migrate-003-channels.js",
+        "db:import-gvision": "node scripts/import-gvision-json.js",
+        "db:migrate-package-channels": "node scripts/migrate-004-package-channels.js",
+        "db:migrate-epg": "node scripts/migrate-005-epg.js",
+        "db:migrate-channel-views": "node scripts/migrate-006-channel-views.js",
+        "db:migrate-payments": "node scripts/migrate-007-payments.js",
+        "db:migrate-settings": "node scripts/migrate-008-server-settings.js",
+        "epg:sync": "node scripts/sync-epg.js",
+        "db:fix-stream-urls": "node scripts/fix-stream-urls.js"
     },
     "dependencies": {
-      "dotenv":     "^16.4.5",
-      "express":    "^4.18.2",
-      "pg":         "^8.11.3",
-      "ioredis":    "^5.3.2",
-      "jsonwebtoken":"^9.0.2",
-      "bcryptjs":   "^2.4.3",
-      "axios":      "^1.6.2",
-      "cors":       "^2.8.5",
-      "helmet":     "^7.1.0",
-      "morgan":     "^1.10.0",
-      "xml2js":     "^0.6.2"
+        "axios": "^1.6.2",
+        "bcryptjs": "^2.4.3",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^4.18.2",
+        "helmet": "^7.1.0",
+        "ioredis": "^5.3.2",
+        "jsonwebtoken": "^9.0.2",
+        "morgan": "^1.10.0",
+        "multer": "^2.2.0",
+        "pg": "^8.11.3",
+        "xml2js": "^0.6.2"
     },
     "devDependencies": {
-      "nodemon": "^3.0.2"
+        "nodemon": "^3.0.2"
     }
-  }
+}

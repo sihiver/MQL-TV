@@ -63,6 +63,8 @@ app.get("/health", async (_req, res) => {
 app.use("/api", maintenanceMiddleware);
 app.use("/api", rateLimitMiddleware);
 
+import appUpdatesRoutes from "./routes/app-updates.js";
+
 app.use("/api/auth", authRoutes);
 app.use("/api/channels", channelRoutes);
 app.use("/api/playlist", playlistRoutes);
@@ -70,9 +72,14 @@ app.use("/api/epg", epgRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/devices", deviceRoutes);
+app.use("/api/app-updates", appUpdatesRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/public/presence", presenceRoutes);
 app.use("/public/presence", presenceRoutes);
+
+import path from "path";
+import expressStatic from "express";
+app.use("/public", expressStatic.static(path.join(process.cwd(), "public")));
 
 app.use((err, _req, res, _next) => {
   console.error(err.stack);
