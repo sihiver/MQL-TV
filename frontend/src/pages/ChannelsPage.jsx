@@ -425,11 +425,12 @@ export default function ChannelsPage() {
       )}
 
       <div
+        className="table-responsive"
         style={{
           background: "rgba(255,255,255,0.02)",
           border: "1px solid rgba(255,255,255,0.07)",
           borderRadius: 16,
-          overflow: "hidden",
+          overflowX: "auto",
         }}
       >
         <table style={{ width: "100%", borderCollapse: "collapse" }}>

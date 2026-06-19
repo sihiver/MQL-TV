@@ -172,7 +172,7 @@ export default function AppUpdatesPage() {
         </form>
       </div>
 
-      <div className="ota-table-wrap">
+      <div className="ota-table-wrap table-responsive">
         <table className="ota-table">
           <thead>
             <tr>

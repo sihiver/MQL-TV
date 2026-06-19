@@ -277,11 +277,12 @@ export default function SubscriptionsPage() {
       </div>
 
       <div
+        className="table-responsive"
         style={{
           background: "rgba(255,255,255,0.02)",
           border: "1px solid rgba(255,255,255,0.07)",
           borderRadius: 16,
-          overflow: "auto",
+          overflowX: "auto",
         }}
       >
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
