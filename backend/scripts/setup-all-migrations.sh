@@ -14,6 +14,7 @@ npm run db:migrate-epg
 npm run db:migrate-channel-views
 npm run db:migrate-payments
 npm run db:migrate-settings
+npm run db:migrate-app-updates
 
 echo "=== Seed ==="
 npm run db:seed-users
