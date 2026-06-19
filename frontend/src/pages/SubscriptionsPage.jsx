@@ -36,7 +36,9 @@ function defaultExpires() {
 /** Tanggal berakhir = akhir hari (UTC) agar masih aktif sepanjang hari tersebut. */
 function toExpiresIso(dateStr) {
   if (!dateStr) return null;
-  return `${dateStr}T23:59:59.999Z`;
+  // Parse as GMT+7, then convert to ISO UTC string
+  const d = new Date(`${dateStr}T23:59:59.999+07:00`);
+  return d.toISOString();
 }
 
 function isDateExpired(dateStr) {
