@@ -7,6 +7,7 @@ export default function AppUpdatesPage() {
   const [error, setError] = useState(null);
 
   const [form, setForm] = useState({
+    appId: "com.mqltv",
     versionCode: "",
     versionName: "",
     releaseNotes: "",
@@ -42,6 +43,7 @@ export default function AppUpdatesPage() {
     try {
       setUploading(true);
       const formData = new FormData();
+      formData.append("appId", form.appId);
       formData.append("versionCode", form.versionCode);
       formData.append("versionName", form.versionName);
       formData.append("releaseNotes", form.releaseNotes);
@@ -51,7 +53,7 @@ export default function AppUpdatesPage() {
       await createAppUpdate(formData);
       
       // Reset form
-      setForm({ versionCode: "", versionName: "", releaseNotes: "", isForceUpdate: false });
+      setForm({ appId: "com.mqltv", versionCode: "", versionName: "", releaseNotes: "", isForceUpdate: false });
       setApkFile(null);
       e.target.reset(); // reset file input
       
@@ -87,6 +89,20 @@ export default function AppUpdatesPage() {
         <h2 className="ota-card-title">🚀 Publikasi Versi Baru</h2>
         <form onSubmit={handleSubmit}>
           <div className="ota-form-grid">
+            <div className="ota-form-group full-width" style={{ gridColumn: "1 / -1", marginBottom: "10px" }}>
+              <label className="ota-label">Aplikasi Target</label>
+              <select
+                className="ota-input"
+                style={{ cursor: "pointer", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+                value={form.appId}
+                onChange={(e) => setForm({ ...form, appId: e.target.value })}
+              >
+                <option value="com.mqltv" style={{ background: "#1a1a2e" }}>MQLTV Versi 1 (Lama)</option>
+                <option value="com.sihiver.mqltv" style={{ background: "#1a1a2e" }}>MQLTV (Intermediate)</option>
+                <option value="com.sihiver.mqltv2" style={{ background: "#1a1a2e" }}>MQLTV Versi 2 (Baru)</option>
+              </select>
+            </div>
+
             <div className="ota-form-group">
               <label className="ota-label">Version Code (Internal)</label>
               <input
@@ -160,6 +176,7 @@ export default function AppUpdatesPage() {
         <table className="ota-table">
           <thead>
             <tr>
+              <th>Aplikasi</th>
               <th>Ver Code</th>
               <th>Ver Name</th>
               <th>Force Update</th>
@@ -176,6 +193,15 @@ export default function AppUpdatesPage() {
             ) : (
               updates.map((u) => (
                 <tr key={u.id}>
+                  <td>
+                    {u.appId === "com.sihiver.mqltv2" ? (
+                      <span className="ota-badge force" style={{ background: "rgba(168,85,247,0.2)", color: "#d8b4fe", borderColor: "rgba(168,85,247,0.4)" }}>MQLTV 2</span>
+                    ) : u.appId === "com.sihiver.mqltv" ? (
+                      <span className="ota-badge" style={{ background: "rgba(236,72,153,0.2)", color: "#f9a8d4", borderColor: "rgba(236,72,153,0.4)", display: "inline-block", padding: "4px 8px", borderRadius: "12px", fontSize: "12px", fontWeight: "600" }}>MQLTV Int</span>
+                    ) : (
+                      <span className="ota-badge normal">MQLTV 1</span>
+                    )}
+                  </td>
                   <td><strong>{u.versionCode}</strong></td>
                   <td style={{ color: "#63b3ed" }}>{u.versionName}</td>
                   <td>

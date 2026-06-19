@@ -6,8 +6,10 @@ const router = Router();
 // GET /api/app-updates/latest
 router.get("/latest", async (req, res, next) => {
   try {
+    const appId = req.query.appId || "com.mqltv";
     const { rows } = await db.query(
-      "SELECT * FROM app_updates ORDER BY version_code DESC LIMIT 1"
+      "SELECT * FROM app_updates WHERE app_id = $1 ORDER BY version_code DESC LIMIT 1",
+      [appId]
     );
     if (rows.length === 0) {
       return res.status(404).json({ message: "Belum ada pembaruan aplikasi." });

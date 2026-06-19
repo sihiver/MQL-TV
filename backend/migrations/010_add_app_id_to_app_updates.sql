@@ -1,0 +1,2 @@
+ALTER TABLE app_updates
+ADD COLUMN IF NOT EXISTS app_id VARCHAR(50) NOT NULL DEFAULT 'com.mqltv';

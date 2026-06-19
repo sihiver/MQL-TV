@@ -43,6 +43,7 @@ router.get("/", async (req, res, next) => {
       releaseNotes: r.release_notes,
       isForceUpdate: r.is_force_update,
       createdAt: r.created_at,
+      appId: r.app_id,
     }));
     res.json(mapped);
   } catch (err) {
@@ -53,7 +54,7 @@ router.get("/", async (req, res, next) => {
 // POST /api/admin/app-updates (Create & Upload)
 router.post("/", upload.single("apkFile"), async (req, res, next) => {
   try {
-    const { versionCode, versionName, releaseNotes, isForceUpdate } = req.body;
+    const { versionCode, versionName, releaseNotes, isForceUpdate, appId } = req.body;
     
     if (!versionCode || !versionName) {
       return res.status(400).json({ error: "versionCode dan versionName wajib diisi." });
@@ -67,14 +68,15 @@ router.post("/", upload.single("apkFile"), async (req, res, next) => {
     const apkUrl = `/public/uploads/apks/${req.file.filename}`;
 
     const { rows } = await db.query(
-      `INSERT INTO app_updates (version_code, version_name, apk_url, release_notes, is_force_update)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      `INSERT INTO app_updates (version_code, version_name, apk_url, release_notes, is_force_update, app_id)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [
         parseInt(versionCode),
         versionName,
         apkUrl,
         releaseNotes || "",
         isForceUpdate === "true" || isForceUpdate === true,
+        appId || "com.mqltv"
       ]
     );
 
