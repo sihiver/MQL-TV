@@ -27,7 +27,7 @@ router.get("/", async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     const access = await resolvePackageAccess(req.user.id);
-    const cacheKey = `channels:${access.planSlug}:${category || "all"}:${page}`;
+    const cacheKey = `channels:u${req.user.id}:${access.planSlug}:${category || "all"}:${page}`;
     const cached = await redis.get(cacheKey);
     if (cached) return res.json(JSON.parse(cached));
 

@@ -1,6 +1,16 @@
 import { Router } from "express";
 import { db } from "../../config/database.js";
+import { redis } from "../../config/redis.js";
 import { recordSubscriptionPayment } from "../../services/subscriptionPayments.js";
+
+async function invalidateUserChannelCache(userId) {
+  try {
+    const keys = await redis.keys(`channels:*`);
+    if (keys.length > 0) await redis.del(keys);
+  } catch (e) {
+    // non-critical, ignore
+  }
+}
 
 const router = Router();
 
@@ -168,6 +178,9 @@ router.post("/", async (req, res, next) => {
       method: req.body.method || "manual",
     });
 
+    // Invalidate channel cache agar daftar channel segera disesuaikan dengan paket baru
+    await invalidateUserChannelCache(userId);
+
     res.status(201).json(mapped);
   } catch (err) {
     next(err);
@@ -219,6 +232,9 @@ router.put("/:id", async (req, res, next) => {
 
     if (!result.rows.length) return res.status(404).json({ error: "Subscription tidak ditemukan" });
 
+    // Invalidate channel cache agar user segera mendapat daftar channel sesuai paket baru
+    await invalidateUserChannelCache(sub.user_id);
+
     const row = await db.query(`${SELECT_JOIN} WHERE s.id = $1`, [req.params.id]);
     res.json(mapSubscription(row.rows[0]));
   } catch (err) {
@@ -263,6 +279,9 @@ router.patch("/:id/renew", async (req, res, next) => {
       method: req.body.method || "manual",
       notes: months > 1 ? `Perpanjang ${months} bulan` : null,
     });
+
+    // Invalidate channel cache agar user mendapat channel sesuai status baru
+    await invalidateUserChannelCache(sub.user_id);
 
     res.json(mapped);
   } catch (err) {
