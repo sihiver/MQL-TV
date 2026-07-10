@@ -5,9 +5,29 @@ import { recordSubscriptionPayment } from "../../services/subscriptionPayments.j
 
 async function invalidateUserChannelCache(userId) {
   try {
-    // Hapus hanya cache channel milik user ini, bukan semua user
-    const keys = await redis.keys(`channels:u${userId}:*`);
-    if (keys.length > 0) await redis.del(keys);
+    const userCacheSetKey = `user:cache:keys:${userId}`;
+
+    // Coba ambil dari Redis Set (O(1) – jalur utama untuk instalasi terbaru)
+    const setMembers = await redis.smembers(userCacheSetKey);
+    if (setMembers.length > 0) {
+      await redis.del([...setMembers, userCacheSetKey]);
+      return;
+    }
+
+    // Fallback: SCAN (iteratif, non-blocking) untuk kunci cache lama yang dibuat
+    // sebelum Redis Set dilacak, atau jika set sudah kedaluwarsa.
+    const keysToDelete = [];
+    let cursor = "0";
+    const pattern = `channels:u${userId}:*`;
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+      cursor = nextCursor;
+      keysToDelete.push(...keys);
+    } while (cursor !== "0");
+
+    if (keysToDelete.length > 0) {
+      await redis.del(keysToDelete);
+    }
   } catch (e) {
     // non-critical, ignore
   }

@@ -78,6 +78,13 @@ router.get("/", async (req, res, next) => {
 
     // Cache 5 menit
     await redis.setex(cacheKey, 300, JSON.stringify(payload));
+
+    // Catat cache key ke dalam Redis Set per-user agar invalidasi bisa O(1) tanpa SCAN
+    const userCacheSetKey = `user:cache:keys:${req.user.id}`;
+    await redis.sadd(userCacheSetKey, cacheKey);
+    // Set TTL 10 menit (lebih panjang dari TTL cache 5 menit) agar set selalu ada saat dibutuhkan
+    await redis.expire(userCacheSetKey, 600);
+
     res.json(payload);
   } catch (err) { next(err); }
 });
