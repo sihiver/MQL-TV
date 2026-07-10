@@ -23,7 +23,8 @@ router.use(authenticate);
 // GET /api/channels?category=Sport&page=1&limit=50
 router.get("/", async (req, res, next) => {
   try {
-    const { category, page = 1, limit = 50 } = req.query;
+    const { category, page = 1 } = req.query;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 1000);
     const offset = (page - 1) * limit;
 
     const access = await resolvePackageAccess(req.user.id);

@@ -5,7 +5,8 @@ import { recordSubscriptionPayment } from "../../services/subscriptionPayments.j
 
 async function invalidateUserChannelCache(userId) {
   try {
-    const keys = await redis.keys(`channels:*`);
+    // Hapus hanya cache channel milik user ini, bukan semua user
+    const keys = await redis.keys(`channels:u${userId}:*`);
     if (keys.length > 0) await redis.del(keys);
   } catch (e) {
     // non-critical, ignore
