@@ -94,22 +94,16 @@ router.post("/login", async (req, res, next) => {
       `SELECT expires_at, status FROM subscriptions WHERE user_id = $1 ORDER BY expires_at DESC LIMIT 1`,
       [user.id]
     );
-    let expiresAt = "2000-01-01T00:00:00.000Z";
+    // expiresAt = null → app harus memperlakukan sebagai "belum ada subscription",
+    // BUKAN sebagai "sudah expired". Jangan return tanggal di masa lalu palsu.
+    let expiresAt = null;
     if (subResult.rows.length > 0) {
       const sub = subResult.rows[0];
-      if (sub.status === 'active') {
-        expiresAt = sub.expires_at ? new Date(sub.expires_at).toISOString() : "2000-01-01T00:00:00.000Z";
-      } else {
-        if (sub.expires_at) {
-          const d = new Date(sub.expires_at);
-          if (d <= new Date()) {
-            expiresAt = d.toISOString();
-          } else {
-            expiresAt = new Date(Date.now() - 86400000).toISOString(); // yesterday
-          }
-        } else {
-          expiresAt = "2000-01-01T00:00:00.000Z";
-        }
+      if (sub.status === 'active' && sub.expires_at) {
+        expiresAt = new Date(sub.expires_at).toISOString();
+      } else if (sub.expires_at) {
+        // Subscription inactive — return tanggal asli agar app tahu kapan expired
+        expiresAt = new Date(sub.expires_at).toISOString();
       }
     }
 
@@ -244,18 +238,12 @@ router.get("/me", authenticate, async (req, res, next) => {
     );
     const user = result.rows[0];
     if (user) {
-      let expiresAt = "2000-01-01T00:00:00.000Z";
+      // expiresAt = null → app harus memperlakukan sebagai "belum ada subscription",
+      // BUKAN sebagai "sudah expired". Jangan return tanggal di masa lalu palsu.
+      let expiresAt = null;
       if (user.rawExpiresAt) {
-        if (user.subStatus === 'active') {
-          expiresAt = new Date(user.rawExpiresAt).toISOString();
-        } else {
-          const d = new Date(user.rawExpiresAt);
-          if (d <= new Date()) {
-            expiresAt = d.toISOString();
-          } else {
-            expiresAt = new Date(Date.now() - 86400000).toISOString(); // yesterday
-          }
-        }
+        // Return tanggal asli — biarkan app yang menentukan expired atau tidak
+        expiresAt = new Date(user.rawExpiresAt).toISOString();
       }
       user.expiresAt = expiresAt;
       delete user.rawExpiresAt;
