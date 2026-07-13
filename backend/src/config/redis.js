@@ -68,6 +68,42 @@ class MemoryRedis {
     }
     return 1;
   }
+
+  async sadd(key, ...members) {
+    this._warn();
+    let set = this.store.get(key);
+    if (!set || (set.expiresAt && Date.now() > set.expiresAt)) {
+      set = { value: new Set(), expiresAt: null };
+      this.store.set(key, set);
+    }
+    const beforeSize = set.value.size;
+    members.forEach((m) => set.value.add(m));
+    return set.value.size - beforeSize;
+  }
+
+  async smembers(key) {
+    this._warn();
+    const set = this.store.get(key);
+    if (!set) return [];
+    if (set.expiresAt && Date.now() > set.expiresAt) {
+      this.store.delete(key);
+      return [];
+    }
+    return Array.from(set.value);
+  }
+
+  async scan(cursor, ...args) {
+    this._warn();
+    let pattern = "*";
+    const matchIdx = args.indexOf("MATCH");
+    if (matchIdx >= 0 && matchIdx + 1 < args.length) {
+      pattern = args[matchIdx + 1];
+    }
+    const regexStr = "^" + pattern.replace(/\*/g, ".*") + "$";
+    const regex = new RegExp(regexStr);
+    const allKeys = [...this.store.keys()].filter((k) => regex.test(k));
+    return ["0", allKeys];
+  }
 }
 
 function createRedis() {
@@ -115,4 +151,7 @@ export const redis = {
   keys: (pattern) => useRedis((r) => r.keys(pattern)),
   incr: (key) => useRedis((r) => r.incr(key)),
   expire: (key, seconds) => useRedis((r) => r.expire(key, seconds)),
+  sadd: (key, ...members) => useRedis((r) => r.sadd(key, ...members)),
+  smembers: (key) => useRedis((r) => r.smembers(key)),
+  scan: (cursor, ...args) => useRedis((r) => r.scan(cursor, ...args)),
 };
