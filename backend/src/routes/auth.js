@@ -201,9 +201,18 @@ router.post("/refresh", async (req, res, next) => {
       process.env.JWT_SECRET,
       { expiresIn },
     );
+    const newRefreshToken = jwt.sign(
+      { id: user.id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "30d" },
+    );
+
+    // Perbarui refresh token di Redis (rolling refresh 30 hari lagi)
+    await redis.setex(`refresh:${user.id}`, 60 * 60 * 24 * 30, newRefreshToken);
 
     res.json({
       token,
+      refreshToken: newRefreshToken,
       expiresIn: parseDurationToSeconds(expiresIn) || 86400,
     });
   } catch (err) {
