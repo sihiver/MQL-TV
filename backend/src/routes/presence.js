@@ -7,7 +7,13 @@ const router = Router();
 
 router.post("/", async (req, res, next) => {
   try {
-    const { appKey, status, channelTitle } = req.body;
+    let { appKey, status, channelTitle } = req.body;
+
+    // Prioritaskan header Authorization jika ada (karena OkHttp Authenticator mengupdate header ini saat retry)
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      appKey = authHeader.substring(7).trim();
+    }
 
     if (!appKey) {
       return res.status(401).json({ error: "Missing appKey (token)" });
