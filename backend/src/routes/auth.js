@@ -14,6 +14,59 @@ async function jwtExpiresIn() {
   return settings.jwtExpiry || "1d";
 }
 
+// ── Refresh token helpers (dual-storage: Redis + PostgreSQL) ──────────────────
+// Redis digunakan sebagai primary (fast), PostgreSQL sebagai fallback persistent.
+// Jika Redis restart/mati, token tetap bisa ditemukan di PostgreSQL.
+
+const REFRESH_TTL_DAYS = 30;
+const REFRESH_TTL_SEC  = 60 * 60 * 24 * REFRESH_TTL_DAYS;
+
+async function saveRefreshToken(userId, token) {
+  const expiresAt = new Date(Date.now() + REFRESH_TTL_SEC * 1000);
+  // Tulis ke Redis (fast path)
+  try { await redis.setex(`refresh:${userId}`, REFRESH_TTL_SEC, token); } catch (_) {}
+  // Tulis ke PostgreSQL (persistent fallback)
+  try {
+    await db.query(
+      `INSERT INTO refresh_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at`,
+      [userId, token, expiresAt]
+    );
+  } catch (_) {}
+}
+
+async function getRefreshToken(userId) {
+  // Coba Redis dulu
+  try {
+    const stored = await redis.get(`refresh:${userId}`);
+    if (stored) return stored;
+  } catch (_) {}
+  // Fallback ke PostgreSQL jika Redis tidak punya (misal setelah restart)
+  try {
+    const res = await db.query(
+      `SELECT token FROM refresh_tokens
+       WHERE user_id = $1 AND expires_at > NOW()
+       ORDER BY expires_at DESC LIMIT 1`,
+      [userId]
+    );
+    if (res.rows.length) {
+      const token = res.rows[0].token;
+      // Re-sync ke Redis agar request berikutnya lebih cepat
+      try { await redis.setex(`refresh:${userId}`, REFRESH_TTL_SEC, token); } catch (_) {}
+      return token;
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function deleteRefreshToken(userId) {
+  try { await redis.del(`refresh:${userId}`); } catch (_) {}
+  try { await db.query("DELETE FROM refresh_tokens WHERE user_id = $1", [userId]); } catch (_) {}
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 // POST /api/auth/register
 router.post("/register", async (req, res, next) => {
   try {
@@ -85,8 +138,8 @@ router.post("/login", async (req, res, next) => {
       { expiresIn: "30d" },
     );
 
-    // Simpan refresh token di Redis
-    await redis.setex(`refresh:${user.id}`, 60 * 60 * 24 * 30, refreshToken);
+    // Simpan refresh token (Redis + PostgreSQL dual-write)
+    await saveRefreshToken(user.id, refreshToken);
 
     const expiresSec = parseDurationToSeconds(expiresIn) || 86400;
 
@@ -178,7 +231,7 @@ router.post("/refresh", async (req, res, next) => {
       return res.status(401).json({ error: "Refresh token tidak valid atau kadaluarsa" });
     }
 
-    const stored = await redis.get(`refresh:${payload.id}`);
+    const stored = await getRefreshToken(payload.id);
     if (!stored || stored !== refreshToken) {
       return res.status(401).json({ error: "Refresh token tidak valid" });
     }
@@ -207,8 +260,8 @@ router.post("/refresh", async (req, res, next) => {
       { expiresIn: "30d" },
     );
 
-    // Perbarui refresh token di Redis (rolling refresh 30 hari lagi)
-    await redis.setex(`refresh:${user.id}`, 60 * 60 * 24 * 30, newRefreshToken);
+    // Perbarui refresh token (dual-write, rolling 30 hari lagi)
+    await saveRefreshToken(user.id, newRefreshToken);
 
     res.json({
       token,
@@ -226,7 +279,7 @@ router.post("/logout", authenticate, async (req, res, next) => {
     const token = req.headers.authorization.split(" ")[1];
     // Blacklist token selama 1 hari
     await redis.setex(`blacklist:${token}`, 86400, "1");
-    await redis.del(`refresh:${req.user.id}`);
+    await deleteRefreshToken(req.user.id);
     res.json({ success: true });
   } catch (err) { next(err); }
 });
