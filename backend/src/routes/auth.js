@@ -23,7 +23,8 @@ const REFRESH_TTL_SEC  = 60 * 60 * 24 * REFRESH_TTL_DAYS;
 
 async function saveRefreshToken(userId, token) {
   const expiresAt = new Date(Date.now() + REFRESH_TTL_SEC * 1000);
-  // Tulis ke Redis (fast path)
+  // Tulis ke Redis dengan key token (fast path per-token) dan key user (legacy compatibility)
+  try { await redis.setex(`refresh:${token}`, REFRESH_TTL_SEC, userId.toString()); } catch (_) {}
   try { await redis.setex(`refresh:${userId}`, REFRESH_TTL_SEC, token); } catch (_) {}
   // Tulis ke PostgreSQL (persistent fallback)
   try {
@@ -36,33 +37,46 @@ async function saveRefreshToken(userId, token) {
   } catch (_) {}
 }
 
-async function getRefreshToken(userId) {
-  // Coba Redis dulu
+async function isRefreshTokenValid(userId, token) {
+  if (!userId || !token) return false;
+  // Fast path: Redis check per-token
   try {
-    const stored = await redis.get(`refresh:${userId}`);
-    if (stored) return stored;
+    const storedUserId = await redis.get(`refresh:${token}`);
+    if (storedUserId && storedUserId.toString() === userId.toString()) return true;
   } catch (_) {}
-  // Fallback ke PostgreSQL jika Redis tidak punya (misal setelah restart)
+  // Fast path: Redis check per-user
+  try {
+    const storedToken = await redis.get(`refresh:${userId}`);
+    if (storedToken && storedToken === token) return true;
+  } catch (_) {}
+  // Fallback ke PostgreSQL
   try {
     const res = await db.query(
-      `SELECT token FROM refresh_tokens
-       WHERE user_id = $1 AND expires_at > NOW()
-       ORDER BY expires_at DESC LIMIT 1`,
-      [userId]
+      `SELECT 1 FROM refresh_tokens
+       WHERE user_id = $1 AND token = $2 AND expires_at > NOW()`,
+      [userId, token]
     );
-    if (res.rows.length) {
-      const token = res.rows[0].token;
+    if (res.rows.length > 0) {
       // Re-sync ke Redis agar request berikutnya lebih cepat
-      try { await redis.setex(`refresh:${userId}`, REFRESH_TTL_SEC, token); } catch (_) {}
-      return token;
+      try { await redis.setex(`refresh:${token}`, REFRESH_TTL_SEC, userId.toString()); } catch (_) {}
+      return true;
     }
   } catch (_) {}
-  return null;
+  return false;
 }
 
-async function deleteRefreshToken(userId) {
+async function deleteRefreshToken(userId, token) {
+  if (token) {
+    try { await redis.del(`refresh:${token}`); } catch (_) {}
+  }
   try { await redis.del(`refresh:${userId}`); } catch (_) {}
-  try { await db.query("DELETE FROM refresh_tokens WHERE user_id = $1", [userId]); } catch (_) {}
+  try {
+    if (token) {
+      await db.query("DELETE FROM refresh_tokens WHERE user_id = $1 AND token = $2", [userId, token]);
+    } else {
+      await db.query("DELETE FROM refresh_tokens WHERE user_id = $1", [userId]);
+    }
+  } catch (_) {}
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -231,9 +245,9 @@ router.post("/refresh", async (req, res, next) => {
       return res.status(401).json({ error: "Refresh token tidak valid atau kadaluarsa" });
     }
 
-    const stored = await getRefreshToken(payload.id);
-    if (!stored || stored !== refreshToken) {
-      return res.status(401).json({ error: "Refresh token tidak valid" });
+    const valid = await isRefreshTokenValid(payload.id, refreshToken);
+    if (!valid) {
+      return res.status(401).json({ error: "Refresh token tidak valid atau kadaluarsa" });
     }
 
     const result = await db.query("SELECT * FROM users WHERE id = $1", [payload.id]);
