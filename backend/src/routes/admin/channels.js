@@ -377,4 +377,48 @@ router.delete("/:id", async (req, res, next) => {
   }
 });
 
+// POST /api/admin/channels/deduplicate
+router.post("/deduplicate", async (req, res, next) => {
+  try {
+    const result = await db.query(`
+      DELETE FROM channels
+      WHERE id NOT IN (
+        SELECT MIN(id)
+        FROM channels
+        GROUP BY stream_url
+      )
+      RETURNING id
+    `);
+    
+    if (result.rows.length > 0) {
+      await clearChannelCache();
+    }
+    res.json({ success: true, count: result.rows.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/channels/delete-by-category
+router.post("/delete-by-category", async (req, res, next) => {
+  try {
+    const { category } = req.body;
+    if (!category) {
+      return res.status(400).json({ error: "Kategori wajib diisi" });
+    }
+    
+    const result = await db.query(
+      "DELETE FROM channels WHERE category = $1 RETURNING id",
+      [category]
+    );
+    
+    if (result.rows.length > 0) {
+      await clearChannelCache();
+    }
+    res.json({ success: true, count: result.rows.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

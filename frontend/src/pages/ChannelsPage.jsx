@@ -9,6 +9,8 @@ import {
   toggleChannel,
   updateChannel,
   batchActionChannels,
+  deduplicateChannels,
+  deleteChannelsByCategory,
 } from "../api/channels";
 import { fmt } from "../utils/format";
 import ActionBtn from "../components/ActionBtn";
@@ -53,7 +55,10 @@ export default function ChannelsPage() {
   const [m3uUrl, setM3uUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [jsonText, setJsonText] = useState("");
   const [editing, setEditing] = useState(null);
+  const [editMode, setEditMode] = useState("form");
+  const [jsonForm, setJsonForm] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -107,6 +112,8 @@ export default function ChannelsPage() {
   const openCreate = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
+    setJsonForm(JSON.stringify(EMPTY_FORM, null, 2));
+    setEditMode("form");
     setShowForm(true);
   };
 
@@ -118,6 +125,8 @@ export default function ChannelsPage() {
       category: ch.category,
       logoUrl: ch.logoUrl || "",
     });
+    setJsonForm(JSON.stringify(ch, null, 2));
+    setEditMode("form");
     setShowForm(true);
   };
 
@@ -125,12 +134,21 @@ export default function ChannelsPage() {
     setSaving(true);
     setError(null);
     try {
-      const body = {
-        name: form.name,
-        streamUrl: form.streamUrl,
-        category: form.category,
-        logoUrl: form.logoUrl || null,
-      };
+      let body;
+      if (editMode === "json") {
+        body = JSON.parse(jsonForm);
+        delete body.id; // Prevent updating primary key if present
+        delete body.createdAt;
+        delete body.updatedAt;
+      } else {
+        body = {
+          name: form.name,
+          streamUrl: form.streamUrl,
+          category: form.category,
+          logoUrl: form.logoUrl || null,
+        };
+      }
+
       if (editing) {
         await updateChannel(editing.id, body);
       } else {
@@ -141,7 +159,7 @@ export default function ChannelsPage() {
       load();
       loadCategories();
     } catch (e) {
-      setError(e.message);
+      setError(editMode === "json" ? "Invalid JSON: " + e.message : e.message);
     } finally {
       setSaving(false);
     }
@@ -198,6 +216,37 @@ export default function ChannelsPage() {
     }
   };
 
+  const handleDeduplicate = async () => {
+    if (!window.confirm("Hapus semua channel duplikat (berdasarkan Stream URL yang sama)?")) return;
+    try {
+      const res = await deduplicateChannels();
+      alert(`Berhasil menghapus ${res.count} channel duplikat.`);
+      setPage(1);
+      load();
+      loadCategories();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const handleDeleteByCategory = async () => {
+    if (filterCat === "Semua") {
+      alert("Silakan pilih kategori dari filter di bawah terlebih dahulu, lalu klik tombol Hapus Kategori.");
+      return;
+    }
+    if (!window.confirm(`Hapus SEMUA channel dalam kategori "${filterCat}"?`)) return;
+    try {
+      const res = await deleteChannelsByCategory(filterCat);
+      alert(`Berhasil menghapus ${res.count} channel dari kategori "${filterCat}".`);
+      setFilterCat("Semua");
+      setPage(1);
+      load();
+      loadCategories();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
   const handleImportFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -223,6 +272,31 @@ export default function ChannelsPage() {
     } finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const handleManualJsonImport = async () => {
+    if (!jsonText.trim()) {
+      setError("Data JSON wajib diisi");
+      return;
+    }
+
+    setImporting(true);
+    setError(null);
+    setImportResult(null);
+
+    try {
+      const parsed = JSON.parse(jsonText);
+      const result = await importChannelsFromJson(parsed, importMode);
+      setImportResult(result);
+      setPage(1);
+      load();
+      loadCategories();
+      setJsonText(""); // clear on success
+    } catch (err) {
+      setError("Invalid JSON atau error: " + err.message);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -336,6 +410,38 @@ export default function ChannelsPage() {
             }}
           >
             + Tambah Channel
+          </button>
+          <button
+            type="button"
+            onClick={handleDeduplicate}
+            style={{
+              background: "rgba(252,129,129,0.15)",
+              border: "1px solid rgba(252,129,129,0.3)",
+              color: "#FC8181",
+              borderRadius: 10,
+              padding: "9px 18px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            🗑 Hapus Duplikat
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteByCategory}
+            style={{
+              background: "rgba(229,62,62,0.15)",
+              border: "1px solid rgba(229,62,62,0.3)",
+              color: "#FC8181",
+              borderRadius: 10,
+              padding: "9px 18px",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            🗑 Hapus Kategori ({filterCat === "Semua" ? "?" : filterCat})
           </button>
         </div>
       </div>
@@ -595,24 +701,67 @@ export default function ChannelsPage() {
             setEditing(null);
           }}
         >
-          {[
-            { label: "Nama", key: "name", type: "text" },
-            { label: "Stream URL", key: "streamUrl", type: "text" },
-            { label: "Kategori (group)", key: "category", type: "text" },
-            { label: "Logo URL", key: "logoUrl", type: "text" },
-          ].map((f) => (
-            <label key={f.key} style={{ display: "block", marginBottom: 14, fontSize: 11, color: "#888" }}>
-              {f.label}
-              <input
-                style={{ ...inputStyle, marginTop: 6 }}
-                value={form[f.key]}
-                onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            {[
+              { id: "form", label: "Visual Form" },
+              { id: "json", label: "Raw JSON" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setEditMode(tab.id)}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: editMode === tab.id ? "1px solid rgba(99,179,237,0.5)" : "1px solid rgba(255,255,255,0.1)",
+                  background: editMode === tab.id ? "rgba(99,179,237,0.2)" : "rgba(255,255,255,0.05)",
+                  color: editMode === tab.id ? "#63B3ED" : "#aaa",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {editMode === "form" ? (
+            <>
+              {[
+                { label: "Nama", key: "name", type: "text" },
+                { label: "Stream URL", key: "streamUrl", type: "text" },
+                { label: "Kategori (group)", key: "category", type: "text" },
+                { label: "Logo URL", key: "logoUrl", type: "text" },
+              ].map((f) => (
+                <label key={f.key} style={{ display: "block", marginBottom: 14, fontSize: 11, color: "#888" }}>
+                  {f.label}
+                  <input
+                    style={{ ...inputStyle, marginTop: 6 }}
+                    value={form[f.key]}
+                    onChange={(e) => setForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                  />
+                </label>
+              ))}
+            </>
+          ) : (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>
+                Edit semua properti (termasuk DRM, header, tipe source, dll) sebagai JSON:
+              </div>
+              <textarea
+                value={jsonForm}
+                onChange={(e) => setJsonForm(e.target.value)}
+                rows={14}
+                style={{ ...inputStyle, fontFamily: "monospace", resize: "vertical" }}
               />
-            </label>
-          ))}
+            </div>
+          )}
+
           <button
             type="button"
-            disabled={saving || !form.name || !form.streamUrl}
+            disabled={saving || (editMode === "form" && (!form.name || !form.streamUrl))}
             onClick={save}
             style={{
               width: "100%",
@@ -703,14 +852,46 @@ export default function ChannelsPage() {
           </div>
 
           {importFormat === "json" ? (
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".json,application/json"
-              disabled={importing}
-              onChange={handleImportFile}
-              style={{ fontSize: 12, color: "#ccc", width: "100%" }}
-            />
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".json,application/json"
+                disabled={importing}
+                onChange={handleImportFile}
+                style={{ fontSize: 12, color: "#ccc", width: "100%", marginBottom: 12 }}
+              />
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>ATAU PASTE/EDIT JSON MANUAL</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <textarea
+                  value={jsonText}
+                  onChange={(e) => setJsonText(e.target.value)}
+                  placeholder={'{\n  "categories": [\n    { "category": "Lokal", "channels": [...] }\n  ]\n}'}
+                  disabled={importing}
+                  rows={8}
+                  style={{ ...inputStyle, fontFamily: "monospace", resize: "vertical" }}
+                />
+                <button
+                  type="button"
+                  disabled={importing || !jsonText.trim()}
+                  onClick={handleManualJsonImport}
+                  style={{
+                    background: "rgba(104,211,145,0.2)",
+                    border: "1px solid rgba(104,211,145,0.4)",
+                    color: "#68D391",
+                    borderRadius: 10,
+                    padding: "10px 16px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: importing || !jsonText.trim() ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
+                    alignSelf: "flex-end",
+                  }}
+                >
+                  Import JSON Manual
+                </button>
+              </div>
+            </>
           ) : (
             <>
               <input

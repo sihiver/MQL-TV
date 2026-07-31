@@ -58,3 +58,14 @@ export function batchActionChannels({ ids, action, payload }) {
     body: JSON.stringify({ ids, action, payload }),
   });
 }
+
+export function deduplicateChannels() {
+  return apiFetch("/api/admin/channels/deduplicate", { method: "POST" });
+}
+
+export function deleteChannelsByCategory(category) {
+  return apiFetch("/api/admin/channels/delete-by-category", {
+    method: "POST",
+    body: JSON.stringify({ category }),
+  });
+}
