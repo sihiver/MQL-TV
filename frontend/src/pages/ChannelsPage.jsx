@@ -53,6 +53,7 @@ export default function ChannelsPage() {
   const [importFormat, setImportFormat] = useState("json");
   const [importMode, setImportMode] = useState("replace");
   const [m3uUrl, setM3uUrl] = useState("");
+  const [m3uText, setM3uText] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [jsonText, setJsonText] = useState("");
@@ -326,6 +327,33 @@ export default function ChannelsPage() {
     }
   };
 
+  const handleManualM3uImport = async () => {
+    if (!m3uText.trim()) {
+      setError("Teks playlist M3U wajib diisi");
+      return;
+    }
+
+    setImporting(true);
+    setError(null);
+    setImportResult(null);
+
+    try {
+      const result = await importChannelsFromM3u({
+        content: m3uText.trim(),
+        mode: importMode,
+      });
+      setImportResult(result);
+      setPage(1);
+      load();
+      loadCategories();
+      setM3uText("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const liveCount = channels.filter((c) => c.isLive && c.active).length;
 
@@ -381,6 +409,7 @@ export default function ChannelsPage() {
               setShowImport(true);
               setImportResult(null);
               setM3uUrl("");
+              setM3uText("");
             }}
             style={{
               background: "rgba(99,179,237,0.2)",
@@ -903,7 +932,7 @@ export default function ChannelsPage() {
                 style={{ fontSize: 12, color: "#ccc", width: "100%", marginBottom: 12 }}
               />
               <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>ATAU URL PLAYLIST</div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 <input
                   value={m3uUrl}
                   onChange={(e) => setM3uUrl(e.target.value)}
@@ -928,6 +957,36 @@ export default function ChannelsPage() {
                   }}
                 >
                   Import URL
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>ATAU PASTE/EDIT TEKS M3U MANUAL</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <textarea
+                  value={m3uText}
+                  onChange={(e) => setM3uText(e.target.value)}
+                  placeholder={'#EXTINF:-1 tvg-id="id" group-title="Local",Channel Name\nrtp://...'}
+                  disabled={importing}
+                  rows={8}
+                  style={{ ...inputStyle, fontFamily: "monospace", resize: "vertical" }}
+                />
+                <button
+                  type="button"
+                  disabled={importing || !m3uText.trim()}
+                  onClick={handleManualM3uImport}
+                  style={{
+                    background: "rgba(104,211,145,0.2)",
+                    border: "1px solid rgba(104,211,145,0.4)",
+                    color: "#68D391",
+                    borderRadius: 10,
+                    padding: "10px 16px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: importing || !m3uText.trim() ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
+                    alignSelf: "flex-end",
+                  }}
+                >
+                  Import Teks M3U
                 </button>
               </div>
             </>

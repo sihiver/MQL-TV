@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const STREAM_URL_PATTERN = /^(https?|rtmp|rtsp):\/\//i;
+const STREAM_URL_PATTERN = /^([a-z0-9+.-]+:\/\/|\/|\.)/i;
 
 export async function parseM3UFromUrl(url) {
   const { data } = await axios.get(url, { timeout: 15000, responseType: "text" });
@@ -24,7 +24,7 @@ export function parseM3UContent(content) {
     for (let j = i + 1; j < lines.length && j < i + 6; j++) {
       const line = lines[j];
       if (line.startsWith("#")) continue;
-      if (STREAM_URL_PATTERN.test(line)) {
+      if (STREAM_URL_PATTERN.test(line) || !line.startsWith("#")) {
         url = line;
         break;
       }
