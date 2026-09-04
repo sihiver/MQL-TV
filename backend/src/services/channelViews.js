@@ -49,7 +49,7 @@ export async function touchChannelView(db, userId, channelId) {
   const updated = await db.query(
     `UPDATE channel_views SET viewed_at = NOW()
      WHERE channel_id = $1 AND user_id = $2
-       AND viewed_at > NOW() - INTERVAL '10 minutes'
+       AND viewed_at > NOW() - INTERVAL '30 minutes'
      RETURNING id`,
     [channelId, userId],
   );

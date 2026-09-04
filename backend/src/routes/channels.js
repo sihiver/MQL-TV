@@ -243,11 +243,24 @@ router.post("/watch/stop", async (req, res, next) => {
 });
 
 // POST /api/channels/:id/watch-ping — heartbeat sedang menonton
+// Sengaja ringan: JWT sudah divalidasi oleh authenticate middleware di atas,
+// tidak perlu re-check subscription setiap 60 detik (terlalu berat dan bisa
+// menyebabkan ping gagal → user hilang dari "Sedang Menonton" di dashboard).
 router.post("/:id/watch-ping", async (req, res, next) => {
   try {
-    const ch = await loadChannelForStream(req, res);
-    if (!ch) return;
-    await touchChannelView(db, req.user.id, ch.id);
+    const channelId = parseInt(req.params.id, 10);
+    if (!channelId || isNaN(channelId)) {
+      return res.status(400).json({ error: "Channel ID tidak valid" });
+    }
+    // Hanya pastikan channel masih aktif, tanpa re-check subscription
+    const ch = await db.query(
+      `SELECT id FROM channels WHERE id = $1 AND active = true`,
+      [channelId],
+    );
+    if (!ch.rows.length) {
+      return res.status(404).json({ error: "Channel tidak ditemukan" });
+    }
+    await touchChannelView(db, req.user.id, ch.rows[0].id);
     res.json({ ok: true });
   } catch (err) {
     next(err);
