@@ -1,7 +1,7 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { db } from "../config/database.js";
-import { touchChannelView } from "../services/channelViews.js";
+import { touchChannelView, WATCH_ACTIVE_MINUTES } from "../services/channelViews.js";
 
 const router = Router();
 
@@ -32,13 +32,13 @@ router.post("/", async (req, res, next) => {
       // User closed player, shift last view back to remove from 'watching now'
       await db.query(
         `UPDATE channel_views 
-         SET viewed_at = NOW() - INTERVAL '3 minutes' - INTERVAL '1 second'
+         SET viewed_at = NOW() - make_interval(mins => $1::int) - INTERVAL '1 second'
          WHERE id = (
            SELECT id FROM channel_views 
-           WHERE user_id = $1 
+           WHERE user_id = $2 
            ORDER BY viewed_at DESC LIMIT 1
          )`,
-        [userId]
+        [WATCH_ACTIVE_MINUTES, userId]
       );
       return res.json({ success: true, message: "Marked offline" });
     }

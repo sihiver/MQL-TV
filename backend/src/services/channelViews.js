@@ -1,7 +1,9 @@
 import { redis } from "../config/redis.js";
 
-/** Jendela "sedang menonton" di dashboard (harus ada ping dalam interval ini). */
-export const WATCH_ACTIVE_MINUTES = 3;
+/** Jendela "sedang menonton" di dashboard (harus ada ping dalam interval ini).
+ *  App Android mengirim ping tiap 60 detik; 5 menit memberikan toleransi 4 ping gagal
+ *  sebelum user menghilang dari dashboard — cukup aman di lingkungan produksi. */
+export const WATCH_ACTIVE_MINUTES = 5;
 
 /** Hapus cache trending setelah ada tontonan baru agar unggulan langsung ter-update. */
 export async function invalidateTrendingCache() {
