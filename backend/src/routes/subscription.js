@@ -10,7 +10,7 @@ router.get("/", async (req, res, next) => {
     const subResult = await db.query(
       `SELECT plan, status, started_at, expires_at, max_devices
        FROM subscriptions
-       WHERE user_id = $1 AND status = 'active' AND expires_at > NOW()
+       WHERE user_id = $1
        ORDER BY expires_at DESC
        LIMIT 1`,
       [req.user.id],
@@ -26,6 +26,19 @@ router.get("/", async (req, res, next) => {
     }
 
     const sub = subResult.rows[0];
+    const isActuallyActive = sub.status === "active" && new Date(sub.expires_at) > new Date();
+
+    if (!isActuallyActive) {
+      return res.json({
+        plan: "free",
+        status: "expired",
+        package_name: "Free",
+        channel_count: 0,
+        started_at: sub.started_at,
+        expires_at: sub.expires_at,
+        max_devices: sub.max_devices,
+      });
+    }
     const planSlug = (sub.plan || "free").toLowerCase();
 
     const pkgResult = await db.query(

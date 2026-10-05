@@ -20,7 +20,8 @@
         "db:migrate-settings": "node scripts/migrate-008-server-settings.js",
         "db:migrate-app-updates": "node scripts/migrate-009-app-updates.js",
         "epg:sync": "node scripts/sync-epg.js",
-        "db:fix-stream-urls": "node scripts/fix-stream-urls.js"
+        "db:fix-stream-urls": "node scripts/fix-stream-urls.js",
+        "db:fix-subscription-years": "node scripts/fix-subscription-years.js"
     },
     "dependencies": {
         "axios": "^1.6.2",

@@ -18,8 +18,8 @@ async function seed() {
   }
 
   const now = new Date();
-  const nextYear = new Date(now);
-  nextYear.setFullYear(nextYear.getFullYear() + 1);
+  const nextMonth = new Date(now);
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
   const lastMonth = new Date(now);
   lastMonth.setMonth(lastMonth.getMonth() - 1);
 
@@ -42,7 +42,7 @@ async function seed() {
         u.plan || "basic",
         isExpired ? "expired" : "active",
         isExpired ? lastMonth.toISOString() : now.toISOString(),
-        isExpired ? lastMonth.toISOString() : nextYear.toISOString(),
+        isExpired ? lastMonth.toISOString() : nextMonth.toISOString(),
         u.plan === "premium" ? 3 : 1,
       ],
     );

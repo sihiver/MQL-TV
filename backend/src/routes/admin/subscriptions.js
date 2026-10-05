@@ -58,7 +58,7 @@ function resolveStatus(expiresAt, requestedStatus) {
   return requestedStatus || "active";
 }
 
-async function expireStaleSubscriptions() {
+export async function expireStaleSubscriptions() {
   await db.query(
     `UPDATE subscriptions SET status = 'expired'
      WHERE status = 'active' AND expires_at <= NOW()`,

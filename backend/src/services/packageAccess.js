@@ -1,6 +1,6 @@
 import { db } from "../config/database.js";
 
-/** Slug paket aktif user (subscription). */
+/** Slug paket aktif user (subscription). Mengembalikan null jika tidak ada paket aktif. */
 export async function getUserPlanSlug(userId) {
   const result = await db.query(
     `SELECT LOWER(s.plan) AS slug
@@ -10,10 +10,11 @@ export async function getUserPlanSlug(userId) {
      LIMIT 1`,
     [userId],
   );
-  return result.rows[0]?.slug || "basic";
+  return result.rows[0]?.slug || null;
 }
 
 export async function getPackageBySlug(slug) {
+  if (!slug) return null;
   const result = await db.query(
     `SELECT id, slug, includes_all_channels, active
      FROM packages WHERE slug = $1`,
@@ -35,10 +36,10 @@ export async function channelAllowedForPackage(packageId, channelId, includesAll
 /** SQL JOIN + WHERE untuk list channel menurut paket user. */
 export async function resolvePackageAccess(userId) {
   const planSlug = await getUserPlanSlug(userId);
-  const pkg = await getPackageBySlug(planSlug);
+  const pkg = planSlug ? await getPackageBySlug(planSlug) : null;
 
   if (!pkg || !pkg.active) {
-    return { planSlug, packageId: null, includesAll: false, hasPackage: false };
+    return { planSlug: planSlug || "free", packageId: null, includesAll: false, hasPackage: false };
   }
 
   return {

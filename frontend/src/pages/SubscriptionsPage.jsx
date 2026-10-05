@@ -29,7 +29,7 @@ const inputStyle = {
 
 function defaultExpires() {
   const d = new Date();
-  d.setFullYear(d.getFullYear() + 1);
+  d.setMonth(d.getMonth() + 1);
   return d.toISOString().slice(0, 10);
 }
 

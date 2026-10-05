@@ -15,6 +15,7 @@ import deviceRoutes from "./routes/devices.js";
 import adminRoutes from "./routes/admin.js";
 import presenceRoutes from "./routes/presence.js";
 import { initServerSettings } from "./services/serverSettings.js";
+import { expireStaleSubscriptions } from "./routes/admin/subscriptions.js";
 import { maintenanceMiddleware } from "./middleware/maintenance.js";
 import { rateLimitMiddleware } from "./middleware/rateLimit.js";
 
@@ -89,6 +90,7 @@ app.use((err, _req, res, _next) => {
 });
 
 let server;
+let expireInterval;
 
 async function start() {
   try {
@@ -98,6 +100,12 @@ async function start() {
     const { getServerSettingsSync } = await import("./services/serverSettings.js");
     const cfg = getServerSettingsSync();
     console.log(`⚙️  Rate limit: ${cfg.rateLimit} req/menit · Maks perangkat default: ${cfg.maxDevices}`);
+
+    await expireStaleSubscriptions().catch((err) => console.error("Auto-expire initial error:", err.message));
+    if (expireInterval) clearInterval(expireInterval);
+    expireInterval = setInterval(() => {
+      expireStaleSubscriptions().catch((err) => console.error("Auto-expire periodic error:", err.message));
+    }, 5 * 60 * 1000);
   } catch (err) {
     console.error("❌ PostgreSQL gagal:", err.message);
     process.exit(1);
@@ -124,6 +132,7 @@ async function start() {
 }
 
 function shutdown() {
+  if (expireInterval) clearInterval(expireInterval);
   if (server) {
     server.close(() => process.exit(0));
   } else {

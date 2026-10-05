@@ -140,9 +140,27 @@ router.post("/login", async (req, res, next) => {
       return res.status(503).json({ error: "Server sedang maintenance" });
     }
 
+    const subResult = await db.query(
+      `SELECT plan, expires_at, status FROM subscriptions WHERE user_id = $1 ORDER BY expires_at DESC LIMIT 1`,
+      [user.id]
+    );
+    let expiresAt = null;
+    let activePlan = null;
+    if (subResult.rows.length > 0) {
+      const sub = subResult.rows[0];
+      const isSubActive = sub.status === 'active' && sub.expires_at && new Date(sub.expires_at) > new Date();
+      if (isSubActive) {
+        expiresAt = new Date(sub.expires_at).toISOString();
+        activePlan = sub.plan;
+      } else if (sub.expires_at) {
+        expiresAt = new Date(sub.expires_at).toISOString();
+      }
+    }
+
+    const effectivePlan = user.role === "admin" ? user.plan : (activePlan || "free");
     const expiresIn = await jwtExpiresIn();
     const token = jwt.sign(
-      { id: user.id, email: user.email, plan: user.plan, role: user.role },
+      { id: user.id, email: user.email, plan: effectivePlan, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn },
     );
@@ -157,23 +175,6 @@ router.post("/login", async (req, res, next) => {
 
     const expiresSec = parseDurationToSeconds(expiresIn) || 86400;
 
-    const subResult = await db.query(
-      `SELECT expires_at, status FROM subscriptions WHERE user_id = $1 ORDER BY expires_at DESC LIMIT 1`,
-      [user.id]
-    );
-    // expiresAt = null → app harus memperlakukan sebagai "belum ada subscription",
-    // BUKAN sebagai "sudah expired". Jangan return tanggal di masa lalu palsu.
-    let expiresAt = null;
-    if (subResult.rows.length > 0) {
-      const sub = subResult.rows[0];
-      if (sub.status === 'active' && sub.expires_at) {
-        expiresAt = new Date(sub.expires_at).toISOString();
-      } else if (sub.expires_at) {
-        // Subscription inactive — return tanggal asli agar app tahu kapan expired
-        expiresAt = new Date(sub.expires_at).toISOString();
-      }
-    }
-
     res.json({
       token,
       refreshToken,
@@ -182,7 +183,7 @@ router.post("/login", async (req, res, next) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        plan: user.plan,
+        plan: effectivePlan,
         role: user.role,
         expiresAt: expiresAt,
       },
@@ -305,7 +306,8 @@ router.get("/me", authenticate, async (req, res, next) => {
       `SELECT u.id, u.name, u.email, u.plan, u.role,
               COUNT(d.id) as devices,
               (SELECT expires_at FROM subscriptions s WHERE s.user_id = u.id ORDER BY expires_at DESC LIMIT 1) as "rawExpiresAt",
-              (SELECT status FROM subscriptions s WHERE s.user_id = u.id ORDER BY expires_at DESC LIMIT 1) as "subStatus"
+              (SELECT status FROM subscriptions s WHERE s.user_id = u.id ORDER BY expires_at DESC LIMIT 1) as "subStatus",
+              (SELECT plan FROM subscriptions s WHERE s.user_id = u.id AND s.status = 'active' AND s.expires_at > NOW() ORDER BY expires_at DESC LIMIT 1) as "activePlan"
        FROM users u
        LEFT JOIN devices d ON d.user_id = u.id
        WHERE u.id = $1
@@ -314,16 +316,17 @@ router.get("/me", authenticate, async (req, res, next) => {
     );
     const user = result.rows[0];
     if (user) {
-      // expiresAt = null → app harus memperlakukan sebagai "belum ada subscription",
-      // BUKAN sebagai "sudah expired". Jangan return tanggal di masa lalu palsu.
       let expiresAt = null;
       if (user.rawExpiresAt) {
-        // Return tanggal asli — biarkan app yang menentukan expired atau tidak
         expiresAt = new Date(user.rawExpiresAt).toISOString();
       }
       user.expiresAt = expiresAt;
+      if (user.role !== "admin") {
+        user.plan = user.activePlan || "free";
+      }
       delete user.rawExpiresAt;
       delete user.subStatus;
+      delete user.activePlan;
     }
     res.json(user);
   } catch (err) { next(err); }
