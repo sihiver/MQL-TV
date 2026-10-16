@@ -93,7 +93,7 @@ export async function getTrendingChannels(db, access, { limit = 10, days = 30 } 
     "COALESCE(c.is_live, true) = true",
   ];
 
-  if (!access.includesAll) {
+  if (!access.includesAll && access.packageId) {
     params.push(access.packageId);
     conditions.push(
       `c.id IN (SELECT channel_id FROM package_channels WHERE package_id = $${params.length})`,

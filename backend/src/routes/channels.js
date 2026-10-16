@@ -30,16 +30,19 @@ router.get("/", async (req, res, next) => {
     const access = await resolvePackageAccess(req.user.id);
     const cacheKey = `channels:u${req.user.id}:${access.planSlug}:${category || "all"}:${page}`;
     const cached = await redis.get(cacheKey);
-    if (cached) return res.json(JSON.parse(cached));
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
+          return res.json(parsed);
+        }
+      } catch (e) {}
+    }
 
     const params = [];
     const conditions = ["c.active = true"];
 
-    if (!access.hasPackage) {
-      return res.json({ data: [], total: 0, page: parseInt(page, 10), limit: parseInt(limit, 10) });
-    }
-
-    if (!access.includesAll) {
+    if (access.hasPackage && !access.includesAll && access.packageId) {
       params.push(access.packageId);
       conditions.push(
         `c.id IN (SELECT channel_id FROM package_channels WHERE package_id = $${params.length})`,
@@ -94,13 +97,10 @@ router.get("/search", async (req, res, next) => {
   try {
     const { q } = req.query;
     const access = await resolvePackageAccess(req.user.id);
-    if (!access.hasPackage) {
-      return res.json({ data: [], total: 0 });
-    }
 
     const params = [`%${q}%`];
     let packageFilter = "";
-    if (!access.includesAll) {
+    if (access.hasPackage && !access.includesAll && access.packageId) {
       params.push(access.packageId);
       packageFilter = `AND c.id IN (SELECT channel_id FROM package_channels WHERE package_id = $${params.length})`;
     }
@@ -122,13 +122,17 @@ router.get("/search", async (req, res, next) => {
 router.get("/categories", async (req, res, next) => {
   try {
     const access = await resolvePackageAccess(req.user.id);
-    if (!access.hasPackage) {
-      return res.json({ data: [] });
-    }
 
     const cacheKey = `channels:categories:${access.planSlug}`;
     const cached = await redis.get(cacheKey);
-    if (cached) return res.json(JSON.parse(cached));
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
+          return res.json(parsed);
+        }
+      } catch (e) {}
+    }
 
     const params = [];
     const conditions = [
@@ -137,7 +141,7 @@ router.get("/categories", async (req, res, next) => {
       "TRIM(c.category) <> ''",
     ];
 
-    if (!access.includesAll) {
+    if (access.hasPackage && !access.includesAll && access.packageId) {
       params.push(access.packageId);
       conditions.push(
         `c.id IN (SELECT channel_id FROM package_channels WHERE package_id = $${params.length})`,

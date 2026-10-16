@@ -30,11 +30,11 @@ async function assertChannelAccess(userId, channelId) {
     throw err;
   }
 
-  if (!access.includesAll) {
+  if (!access.includesAll && access.packageId) {
     const allowed = await channelAllowedForPackage(
       access.packageId,
       channelId,
-      false,
+      access.includesAll,
     );
     if (!allowed) {
       const err = new Error("Channel tidak termasuk paket Anda");
