@@ -15,6 +15,7 @@ npm run db:migrate-channel-views
 npm run db:migrate-payments
 npm run db:migrate-settings
 npm run db:migrate-app-updates
+npm run db:migrate-refresh-tokens
 
 echo "=== Seed ==="
 npm run db:seed-users

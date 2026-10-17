@@ -18,8 +18,23 @@ async function jwtExpiresIn() {
 // Redis digunakan sebagai primary (fast), PostgreSQL sebagai fallback persistent.
 // Jika Redis restart/mati, token tetap bisa ditemukan di PostgreSQL.
 
-const REFRESH_TTL_DAYS = 30;
+const REFRESH_TTL_DAYS = 90;
 const REFRESH_TTL_SEC  = 60 * 60 * 24 * REFRESH_TTL_DAYS;
+
+// Auto-ensure refresh_tokens table exists agar persistent fallback tidak pernah error
+db.query(`
+  CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens (user_id);
+  CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens (expires_at);
+`).catch(err => {
+  console.warn("Notice: refresh_tokens table check:", err.message);
+});
 
 async function saveRefreshToken(userId, token) {
   const expiresAt = new Date(Date.now() + REFRESH_TTL_SEC * 1000);
@@ -39,17 +54,26 @@ async function saveRefreshToken(userId, token) {
 
 async function isRefreshTokenValid(userId, token) {
   if (!userId || !token) return false;
-  // Fast path: Redis check per-token
+
+  // 1. Blacklist check (misal setelah logout)
+  try {
+    const blacklisted = await redis.get(`blacklist:refresh:${token}`);
+    if (blacklisted) return false;
+  } catch (_) {}
+
+  // 2. Fast path: Redis check per-token
   try {
     const storedUserId = await redis.get(`refresh:${token}`);
     if (storedUserId && storedUserId.toString() === userId.toString()) return true;
   } catch (_) {}
-  // Fast path: Redis check per-user
+
+  // 3. Fast path: Redis check per-user
   try {
     const storedToken = await redis.get(`refresh:${userId}`);
     if (storedToken && storedToken === token) return true;
   } catch (_) {}
-  // Fallback ke PostgreSQL
+
+  // 4. Fallback ke PostgreSQL
   try {
     const res = await db.query(
       `SELECT 1 FROM refresh_tokens
@@ -62,12 +86,26 @@ async function isRefreshTokenValid(userId, token) {
       return true;
     }
   } catch (_) {}
+
+  // 5. Cryptographic fallback:
+  // Token sudah divalidasi tanda tangannya via jwt.verify(refreshToken, JWT_REFRESH_SECRET).
+  // Jika Redis ter-flush dan baris DB hilang, selama user aktif & tidak banned, terima dan sinkronkan ulang!
+  // Menghindari STB terkunci saat Redis restart atau cache expire.
+  try {
+    const userRes = await db.query("SELECT id, banned FROM users WHERE id = $1", [userId]);
+    if (userRes.rows.length > 0 && !userRes.rows[0].banned) {
+      await saveRefreshToken(userId, token);
+      return true;
+    }
+  } catch (_) {}
+
   return false;
 }
 
 async function deleteRefreshToken(userId, token) {
   if (token) {
     try { await redis.del(`refresh:${token}`); } catch (_) {}
+    try { await redis.setex(`blacklist:refresh:${token}`, REFRESH_TTL_SEC, "1"); } catch (_) {}
   }
   try { await redis.del(`refresh:${userId}`); } catch (_) {}
   try {
@@ -167,7 +205,7 @@ router.post("/login", async (req, res, next) => {
     const refreshToken = jwt.sign(
       { id: user.id },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "30d" },
+      { expiresIn: "90d" },
     );
 
     // Simpan refresh token (Redis + PostgreSQL dual-write)
@@ -272,10 +310,10 @@ router.post("/refresh", async (req, res, next) => {
     const newRefreshToken = jwt.sign(
       { id: user.id },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: "30d" },
+      { expiresIn: "90d" },
     );
 
-    // Perbarui refresh token (dual-write, rolling 30 hari lagi)
+    // Perbarui refresh token (dual-write, rolling 90 hari lagi)
     await saveRefreshToken(user.id, newRefreshToken);
 
     res.json({
@@ -292,9 +330,11 @@ router.post("/refresh", async (req, res, next) => {
 router.post("/logout", authenticate, async (req, res, next) => {
   try {
     const token = req.headers.authorization.split(" ")[1];
-    // Blacklist token selama 1 hari
+    // Blacklist access token selama 1 hari
     await redis.setex(`blacklist:${token}`, 86400, "1");
-    await deleteRefreshToken(req.user.id);
+
+    const refreshToken = req.body?.refreshToken || req.body?.refresh_token;
+    await deleteRefreshToken(req.user.id, refreshToken);
     res.json({ success: true });
   } catch (err) { next(err); }
 });
