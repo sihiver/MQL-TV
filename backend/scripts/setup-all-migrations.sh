@@ -4,9 +4,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "=== Migrasi 001 (init) ==="
-npm run db:migrate
+npm run db:migrate || true
 
-echo "=== Migrasi 002-008 ==="
+echo "=== Migrasi 002-011 ==="
 npm run db:migrate-packages
 npm run db:migrate-channels
 npm run db:migrate-package-channels

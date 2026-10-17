@@ -1,5 +1,5 @@
 -- Users
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id            SERIAL PRIMARY KEY,
   name          VARCHAR(100) NOT NULL,
   email         VARCHAR(150) UNIQUE NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE users (
 );
 
 -- Channels
-CREATE TABLE channels (
+CREATE TABLE IF NOT EXISTS channels (
   id           SERIAL PRIMARY KEY,
   name         VARCHAR(100) NOT NULL,
   stream_url   TEXT NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE channels (
 );
 
 -- Favorites
-CREATE TABLE favorites (
+CREATE TABLE IF NOT EXISTS favorites (
   id         SERIAL PRIMARY KEY,
   user_id    INT REFERENCES users(id) ON DELETE CASCADE,
   channel_id INT REFERENCES channels(id) ON DELETE CASCADE,
@@ -34,7 +34,7 @@ CREATE TABLE favorites (
 );
 
 -- Subscriptions
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id         SERIAL PRIMARY KEY,
   user_id    INT REFERENCES users(id) ON DELETE CASCADE,
   plan       VARCHAR(20) NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE subscriptions (
 );
 
 -- Devices
-CREATE TABLE devices (
+CREATE TABLE IF NOT EXISTS devices (
   id           SERIAL PRIMARY KEY,
   user_id      INT REFERENCES users(id) ON DELETE CASCADE,
   name         VARCHAR(100),
@@ -57,7 +57,7 @@ CREATE TABLE devices (
 );
 
 -- EPG
-CREATE TABLE epg_programs (
+CREATE TABLE IF NOT EXISTS epg_programs (
   id         SERIAL PRIMARY KEY,
   channel_id INT REFERENCES channels(id) ON DELETE CASCADE,
   title      VARCHAR(200),
@@ -68,7 +68,7 @@ CREATE TABLE epg_programs (
 );
 
 -- Indexes
-CREATE INDEX idx_channels_category   ON channels(category);
-CREATE INDEX idx_favorites_user      ON favorites(user_id);
-CREATE INDEX idx_epg_channel_time    ON epg_programs(channel_id, start_time);
-CREATE INDEX idx_subscriptions_user  ON subscriptions(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_channels_category   ON channels(category);
+CREATE INDEX IF NOT EXISTS idx_favorites_user      ON favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_epg_channel_time    ON epg_programs(channel_id, start_time);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user  ON subscriptions(user_id, status);

@@ -14,7 +14,15 @@ async function migrate() {
   await client.connect();
 
   const sql = fs.readFileSync(sqlPath, "utf8");
-  await client.query(sql);
+  try {
+    await client.query(sql);
+  } catch (err) {
+    if (err.message && err.message.includes("already exists")) {
+      console.log("ℹ️  Tabel dasar sudah ada (skip 001_init.sql).");
+    } else {
+      throw err;
+    }
+  }
 
   const { rows } = await client.query(`
     SELECT table_name FROM information_schema.tables

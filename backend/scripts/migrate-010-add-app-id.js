@@ -1,20 +1,27 @@
+import "dotenv/config";
 import fs from "fs";
 import path from "path";
-import { db } from "../src/config/database.js";
+import { fileURLToPath } from "url";
+import pg from "pg";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const sqlPath = path.join(__dirname, "../migrations/010_add_app_id_to_app_updates.sql");
+
+const { Client } = pg;
 
 async function runMigration() {
-  const sqlPath = path.join(process.cwd(), "migrations", "010_add_app_id_to_app_updates.sql");
-  const sql = fs.readFileSync(sqlPath, "utf8");
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
 
-  try {
-    console.log("Menjalankan migrasi 010 (app_id untuk app_updates)...");
-    await db.query(sql);
-    console.log("Migrasi 010 berhasil!");
-    process.exit(0);
-  } catch (err) {
-    console.error("Gagal menjalankan migrasi 010:", err);
-    process.exit(1);
-  }
+  const sql = fs.readFileSync(sqlPath, "utf8");
+  console.log("Menjalankan migrasi 010 (app_id untuk app_updates)...");
+  await client.query(sql);
+
+  console.log("✅ Migrasi 010 berhasil!");
+  await client.end();
 }
 
-runMigration();
+runMigration().catch((err) => {
+  console.error("❌ Gagal menjalankan migrasi 010:", err.message);
+  process.exit(1);
+});
